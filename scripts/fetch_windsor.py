@@ -37,7 +37,7 @@ def main() -> int:
         "api_key": api_key,
         "date_preset": DATE_PRESET,
         "fields": ",".join(FIELDS),
-        "select_accounts": f"facebook__{ACCOUNT_ID}",
+        "select_accounts": ACCOUNT_ID,
     })
     url = f"https://connectors.windsor.ai/facebook?{params}"
 

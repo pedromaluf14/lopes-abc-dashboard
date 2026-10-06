@@ -402,7 +402,6 @@
               <th class="num-col">Leads</th>
               <th class="num-col">Custo/lead</th>
               <th class="num-col">Gasto (7 dias)</th>
-              <th class="num-col">Gasto total</th>
             </tr>
           </thead>
           <tbody id="produtosBody"></tbody>
@@ -880,8 +879,7 @@
         <td class="name">${p.label}</td>
         <td class="num-col num">${INT(row.leads)}</td>
         <td class="num-col num">${row.leads>0 ? BRL(cpl) : '—'}</td>
-        <td class="num-col num">${BRL(row.spend)}</td>
-        <td class="num-col num">${BRL(allTimeSpend(p.slug))}</td>`;
+        <td class="num-col num">${BRL(row.spend)}</td>`;
       tbody.appendChild(tr);
     });
   }

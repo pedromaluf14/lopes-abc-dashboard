@@ -30,7 +30,7 @@ OUT = os.path.join(os.path.dirname(__file__), "..", "data.json")
 def main() -> int:
     api_key = (os.environ.get("WINDSOR_API_KEY") or "").strip()
     if not api_key:
-        print("WINDSOR_API_KEY não definido", file=sys.stderr)
+        print("::error::WINDSOR_API_KEY não definido")
         return 1
 
     params = urllib.parse.urlencode({
@@ -46,19 +46,19 @@ def main() -> int:
             payload = json.load(resp)
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", "replace")[:800]
-        print(f"ERRO Windsor HTTP {e.code}: {body}", file=sys.stderr)
+        print(f"::error::ERRO Windsor HTTP {e.code}: {body}")
         return 1
     except Exception as e:  # rede, timeout, JSON inválido
-        print(f"ERRO ao chamar o Windsor: {type(e).__name__}: {e}"[:800], file=sys.stderr)
+        print(f"::error::ERRO ao chamar o Windsor: {type(e).__name__}: {e}"[:800])
         return 1
 
     rows = payload.get("data", payload) if isinstance(payload, dict) else payload
     if not isinstance(rows, list):
-        print(f"Resposta inesperada do Windsor: {str(payload)[:500]}", file=sys.stderr)
+        print(f"::error::Resposta inesperada do Windsor: {str(payload)[:500]}")
         return 1
     if not rows:
         # Não sobrescreve dados bons com um retorno vazio (falha temporária da API).
-        print("Windsor retornou 0 linhas; mantendo data.json anterior", file=sys.stderr)
+        print("Windsor retornou 0 linhas; mantendo data.json anterior")
         return 0
 
     out = {

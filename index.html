@@ -992,10 +992,20 @@
   }
 
   els.refreshBtn.addEventListener('click', async ()=>{
+    const icon = document.getElementById('refreshIcon');
+    const before = BUILD_TIME;
     els.refreshBtn.disabled = true;
-    try { await loadData(); } catch(e){}
+    icon.classList.add('spin');
+    let ok = true;
+    try { await loadData(); } catch(e){ ok = false; }
     refreshAll();
+    await new Promise(r => setTimeout(r, 400));
+    icon.classList.remove('spin');
     els.refreshBtn.disabled = false;
+    const agora = new Date().toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    const msg = !ok ? 'não foi possível conferir agora — tente de novo'
+      : (BUILD_TIME !== before ? 'dados novos carregados' : 'já está com os dados mais recentes (conferido às ' + agora + ')');
+    els.updatedAt.textContent += ' · ' + msg;
   });
   document.getElementById('resumoProduct').addEventListener('change', refreshResumo);
   document.querySelectorAll('#resumoPeriodBtns .period-btn').forEach(btn=>{

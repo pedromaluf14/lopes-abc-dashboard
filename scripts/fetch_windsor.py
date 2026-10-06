@@ -6,6 +6,7 @@ A chave da API vem do secret WINDSOR_API_KEY — nunca coloque a chave no códig
 import json
 import os
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
@@ -27,7 +28,7 @@ OUT = os.path.join(os.path.dirname(__file__), "..", "data.json")
 
 
 def main() -> int:
-    api_key = os.environ.get("WINDSOR_API_KEY")
+    api_key = (os.environ.get("WINDSOR_API_KEY") or "").strip()
     if not api_key:
         print("WINDSOR_API_KEY não definido", file=sys.stderr)
         return 1
@@ -40,8 +41,16 @@ def main() -> int:
     })
     url = f"https://connectors.windsor.ai/facebook?{params}"
 
-    with urllib.request.urlopen(url, timeout=120) as resp:
-        payload = json.load(resp)
+    try:
+        with urllib.request.urlopen(url, timeout=120) as resp:
+            payload = json.load(resp)
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", "replace")[:800]
+        print(f"ERRO Windsor HTTP {e.code}: {body}", file=sys.stderr)
+        return 1
+    except Exception as e:  # rede, timeout, JSON inválido
+        print(f"ERRO ao chamar o Windsor: {type(e).__name__}: {e}"[:800], file=sys.stderr)
+        return 1
 
     rows = payload.get("data", payload) if isinstance(payload, dict) else payload
     if not isinstance(rows, list):

@@ -95,6 +95,21 @@
   h1,h2,h3{ font-family:"Poppins", sans-serif; text-wrap:balance; margin:0; }
   .num{ font-family:"Poppins", sans-serif; font-variant-numeric:tabular-nums; }
 
+  /* faixa de logos (LUZIAC + Lopes) acima do cabeçalho */
+  .brandbar{
+    display:flex; align-items:center; justify-content:space-between; gap:20px;
+    background:#fff; border:1px solid var(--border); border-radius:18px;
+    padding:16px 28px; box-shadow:var(--shadow);
+  }
+  .brandbar img{ display:block; height:42px; width:auto; }
+  .brandbar .brand-lopes{ height:30px; }
+  .brand-sep{ flex:1; height:1px; max-width:420px; background:linear-gradient(90deg, transparent, var(--accent-line), transparent); }
+  @media (max-width:560px){
+    .brandbar{ padding:12px 16px; gap:12px; }
+    .brandbar img{ height:26px; }
+    .brandbar .brand-lopes{ height:20px; }
+  }
+
   .masthead{
     background:linear-gradient(135deg, var(--accent), #8E0F3F);
     color:var(--accent-ink);
@@ -351,6 +366,12 @@
 </style>
 
 <div class="wrap">
+
+  <div class="brandbar">
+    <img src="assets/logo-luziac.png" alt="LUZIAC marketing imobiliário" class="brand-luziac">
+    <span class="brand-sep" aria-hidden="true"></span>
+    <img src="assets/logo-lopes.png" alt="Lopes" class="brand-lopes">
+  </div>
 
   <div class="masthead">
     <div>

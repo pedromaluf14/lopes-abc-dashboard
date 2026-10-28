@@ -414,7 +414,7 @@
   <div class="tab-panel" data-panel="verbas">
     <div class="period"><span>&#128197;</span> <span id="verbasPeriod">Saldo corrido</span></div>
     <div class="panel">
-      <div class="panel-sub" style="margin-bottom:10px">Verba: soma de tudo que o cliente já enviou (atualizado pelo time via chat a cada novo aporte, nunca reseta sozinho) · Investido: acumulado desde 1º/jan/2026 (início do acompanhamento de verba), atualizado por hora · Gasto hoje: gasto do dia mais recente, somando os conjuntos do produto · Saldo: Verba − Investido · Válida até: data até quando a verba atual deve cobrir, conforme informado pelo cliente</div>
+      <div class="panel-sub" style="margin-bottom:10px">Verba: soma de tudo que o cliente já enviou (atualizado pelo time via chat a cada novo aporte, nunca reseta sozinho) · Investido: acumulado desde 1º/jan/2026 (início do acompanhamento de verba), atualizado por hora · Gasto hoje: gasto do dia mais recente, somando os conjuntos do produto · Saldo: Verba − Investido · Válida até: data até quando a verba atual deve cobrir, conforme informado pelo cliente · Progresso: quanto da verba disponível no ciclo atual (desde o dia 10) já foi gasto — verde = dentro do ritmo até a data “Válida até”, amarelo/laranja = gastando mais rápido que o prazo, vermelho = verba estourada</div>
       <div style="overflow-x:auto;">
         <table>
           <thead>
@@ -895,13 +895,30 @@
   const RING_R = 16;
   const RING_C = 2 * Math.PI * RING_R; // ~100.53
 
+  // Gasto do produto desde o início do ciclo atual (dia 10 do mês).
+  function cycleSpend(slug){
+    const doc = metricsCache[slug];
+    const from = cycleStartISO();
+    return doc && doc.daily ? doc.daily.filter(r => r.d >= from).reduce((s,r)=>s+(r.spend||0), 0) : 0;
+  }
+
+  // Progresso do ciclo: quanto da verba disponível no início do ciclo (dia 10) já foi
+  // gasto até agora. Verba do ciclo = saldo atual + o que já foi gasto no ciclo.
+  // A cor compara com o tempo do ciclo que já passou (até a data "Válida até").
   function paintVerbaRow(slug, totalSpend, dailySpend){
     const tr = document.querySelector(`#verbasBody tr[data-slug="${slug}"]`);
     if(!tr) return;
     const budget = budgets[slug] || 0;
     const remaining = budget - totalSpend;
-    const usedPct = budget>0 ? Math.round(100*totalSpend/budget) : 0;
+    const spentCycle = cycleSpend(slug);
+    const cycleBudget = remaining + spentCycle;
+    const usedPct = cycleBudget > 0 ? Math.round(100*spentCycle/cycleBudget) : (remaining < 0 ? 100 : 0);
     const ringPct = Math.max(0, Math.min(100, usedPct));
+    // % do tempo do ciclo que já passou
+    const start = cycleStart();
+    const endIso = VERBA_VALID_UNTIL[slug];
+    const end = endIso ? new Date(endIso + 'T00:00:00') : new Date(start.getFullYear(), start.getMonth()+1, 10);
+    const timePct = Math.max(0, Math.min(100, 100*(Date.now() - start.getTime())/(end.getTime() - start.getTime())));
     tr.querySelector('.spend-cell').textContent = BRL(totalSpend);
     tr.querySelector('.daily-cell').textContent = BRL(dailySpend);
     tr.querySelector('.remaining-cell').textContent = BRL(remaining);
@@ -910,14 +927,16 @@
     ringFill.style.strokeDasharray = `${RING_C} ${RING_C}`;
     ringFill.style.strokeDashoffset = RING_C * (1 - ringPct/100);
     ringLabel.textContent = usedPct + '%';
+    tr.querySelector('.ring-wrap').title =
+      `Gasto no ciclo: ${BRL(spentCycle)} de ${BRL(Math.max(cycleBudget,0))} (${usedPct}%) · ${Math.round(timePct)}% do prazo já passou`;
     if(remaining < 0){
-      ringFill.style.stroke = 'var(--bad)';
-    } else if(usedPct >= 95){
-      ringFill.style.stroke = 'var(--critical)';
-    } else if(usedPct >= 80){
-      ringFill.style.stroke = 'var(--warn)';
+      ringFill.style.stroke = 'var(--bad)';              // verba estourada
+    } else if(usedPct > timePct + 10){
+      ringFill.style.stroke = 'var(--critical)';         // gastando bem mais rápido que o prazo
+    } else if(usedPct > timePct){
+      ringFill.style.stroke = 'var(--warn)';             // um pouco acima do ritmo
     } else {
-      ringFill.style.stroke = 'var(--good)';
+      ringFill.style.stroke = 'var(--good)';             // dentro do ritmo
     }
   }
 

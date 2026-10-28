@@ -204,7 +204,8 @@
   .table-scroll{ max-height:168px; overflow-y:auto; }
   .table-scroll thead th{ position:sticky; top:0; background:var(--surface); }
 
-  .filter-row{ display:flex; align-items:center; gap:10px; }
+  .filter-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .filter-row input[type=text]{ min-width:180px; }
   .filter-row input{
     flex:1; font-family:inherit; font-size:13px; padding:9px 12px; border-radius:10px;
     border:1px solid var(--border); background:var(--surface-2); color:var(--ink);
@@ -235,6 +236,23 @@
   .leadbar .track2{ flex:1; height:9px; background:var(--surface-2); border:1px solid var(--border); border-radius:5px; overflow:hidden; min-width:60px; }
   .leadbar .fill2{ height:100%; background:var(--accent); border-radius:4px 0 0 4px; }
   .leadbar .n{ min-width:26px; text-align:right; font-weight:600; }
+
+  /* comparativo com período anterior (Resumo rápido) */
+  .cmp-toggle{ display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; color:var(--ink-soft); cursor:pointer; white-space:nowrap; user-select:none; }
+  .cmp-toggle input{ appearance:none; width:34px; height:20px; border-radius:999px; background:var(--border); position:relative; cursor:pointer; transition:background .2s; margin:0; flex:none; }
+  .cmp-toggle input::after{ content:""; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.2); transition:transform .2s; }
+  .cmp-toggle input:checked{ background:var(--accent); }
+  .cmp-toggle input:checked::after{ transform:translateX(14px); }
+  .cell-v{ display:block; }
+  .delta{ display:inline-flex; align-items:center; gap:4px; margin-top:3px; font-size:11px; font-weight:600; white-space:nowrap; }
+  .delta .chg{ padding:1px 6px; border-radius:999px; }
+  .delta .chg.up-good, .delta .chg.down-good{ color:var(--good); background:var(--good-bg); }
+  .delta .chg.up-bad, .delta .chg.down-bad{ color:var(--bad); background:var(--bad-bg); }
+  .delta .chg.neutral{ color:var(--ink-soft); background:var(--surface-2); border:1px solid var(--border); }
+  .delta .prev{ color:var(--muted); font-weight:500; }
+  @media (max-width:640px){ .delta{ flex-direction:column; align-items:flex-end; gap:2px; } }
+  .no-cmp .delta{ display:none; }
+  tbody tr.total-row td{ border-top:2px solid var(--border); font-weight:700; background:var(--surface-2); }
 
   table{ width:100%; border-collapse:collapse; }
   thead th{
@@ -393,15 +411,18 @@
     <div class="panel">
       <div class="filter-row">
         <input id="productFilter" type="text" placeholder="Filtrar por produto…">
+        <label class="cmp-toggle" title="Compara com os 7 dias imediatamente anteriores, como o “Comparar” do Gerenciador de Anúncios">
+          <input type="checkbox" id="cmpToggle" checked> Comparar com 7 dias anteriores
+        </label>
       </div>
-      <div style="overflow-x:auto; margin-top:14px;">
+      <div id="produtosTableWrap" style="overflow-x:auto; margin-top:14px;">
         <table>
           <thead>
             <tr>
               <th>Produto</th>
               <th class="num-col">Leads</th>
               <th class="num-col">Custo/lead</th>
-              <th class="num-col">Gasto (7 dias)</th>
+              <th class="num-col">Investimento</th>
             </tr>
           </thead>
           <tbody id="produtosBody"></tbody>
@@ -866,24 +887,62 @@
   }
 
   /* ---------------- render: produtos ---------------- */
-  function renderProdutos(last7Map, dateFrom, dateTo){
-    document.getElementById('produtosPeriod').textContent = `${fmtDatePt(dateFrom)} – ${fmtDatePt(dateTo)} (últimos 7 dias)`;
+  // Variação % entre o período atual e o anterior, com seta e cor.
+  // goodWhen: 'up' (mais é melhor), 'down' (menos é melhor) ou 'none' (neutro).
+  function deltaHtml(cur, prev, goodWhen, fmt){
+    if(!(prev > 0)){
+      return cur > 0 ? `<span class="delta"><span class="chg neutral">novo</span></span>` : `<span class="delta"><span class="prev">—</span></span>`;
+    }
+    const pct = 100*(cur - prev)/prev;
+    const r = Math.round(pct);
+    const arrow = r > 0 ? '▲' : (r < 0 ? '▼' : '●');
+    let cls = 'neutral';
+    if(goodWhen !== 'none' && r !== 0){
+      const up = r > 0;
+      cls = (goodWhen === 'up') === up ? (up ? 'up-good' : 'down-good') : (up ? 'up-bad' : 'down-bad');
+    }
+    const txt = (r > 0 ? '+' : '') + r.toLocaleString('pt-BR') + '%';
+    return `<span class="delta" title="Período anterior: ${fmt(prev)}"><span class="chg ${cls}">${arrow} ${txt}</span><span class="prev">ant. ${fmt(prev)}</span></span>`;
+  }
+
+  function renderProdutos(curMap, prevMap, dateFrom, dateTo, prevFrom, prevTo){
+    const cmp = document.getElementById('cmpToggle').checked;
+    document.getElementById('produtosTableWrap').classList.toggle('no-cmp', !cmp);
+    document.getElementById('produtosPeriod').textContent =
+      `${fmtDatePt(dateFrom)} – ${fmtDatePt(dateTo)} (últimos 7 dias)` +
+      (cmp ? ` · comparado com ${fmtDatePt(prevFrom)} – ${fmtDatePt(prevTo)}` : '');
     const tbody = document.getElementById('produtosBody');
     tbody.innerHTML = '';
+    const tot = {leads:0, spend:0}, totPrev = {leads:0, spend:0};
+    const cplFmt = v => BRL(v);
     PRODUCTS.forEach(p=>{
-      const row = last7Map[p.campaign] || {leads:0, spend:0};
+      const row = curMap[p.campaign] || {leads:0, spend:0};
+      const prev = prevMap[p.campaign] || {leads:0, spend:0};
+      tot.leads += row.leads; tot.spend += row.spend; totPrev.leads += prev.leads; totPrev.spend += prev.spend;
       const cpl = row.leads>0 ? row.spend/row.leads : 0;
+      const cplPrev = prev.leads>0 ? prev.spend/prev.leads : 0;
       const tr = document.createElement('tr');
       tr.dataset.name = p.label.toLowerCase();
       tr.innerHTML = `
         <td class="name">${p.label}</td>
-        <td class="num-col num">${INT(row.leads)}</td>
-        <td class="num-col num">${row.leads>0 ? BRL(cpl) : '—'}</td>
-        <td class="num-col num">${BRL(row.spend)}</td>`;
+        <td class="num-col num"><span class="cell-v">${INT(row.leads)}</span>${deltaHtml(row.leads, prev.leads, 'up', INT)}</td>
+        <td class="num-col num"><span class="cell-v">${row.leads>0 ? BRL(cpl) : '—'}</span>${row.leads>0 ? deltaHtml(cpl, cplPrev, 'down', cplFmt) : ''}</td>
+        <td class="num-col num"><span class="cell-v">${BRL(row.spend)}</span>${deltaHtml(row.spend, prev.spend, 'none', BRL)}</td>`;
       tbody.appendChild(tr);
     });
+    const tcpl = tot.leads>0 ? tot.spend/tot.leads : 0, tcplPrev = totPrev.leads>0 ? totPrev.spend/totPrev.leads : 0;
+    const tr = document.createElement('tr');
+    tr.className = 'total-row';
+    tr.dataset.name = '';
+    tr.innerHTML = `
+      <td class="name">Total</td>
+      <td class="num-col num"><span class="cell-v">${INT(tot.leads)}</span>${deltaHtml(tot.leads, totPrev.leads, 'up', INT)}</td>
+      <td class="num-col num"><span class="cell-v">${tot.leads>0 ? BRL(tcpl) : '—'}</span>${tot.leads>0 ? deltaHtml(tcpl, tcplPrev, 'down', cplFmt) : ''}</td>
+      <td class="num-col num"><span class="cell-v">${BRL(tot.spend)}</span>${deltaHtml(tot.spend, totPrev.spend, 'none', BRL)}</td>`;
+    tbody.appendChild(tr);
   }
 
+  document.getElementById('cmpToggle').addEventListener('change', refreshAll);
   document.getElementById('productFilter').addEventListener('input', (e)=>{
     const q = e.target.value.trim().toLowerCase();
     document.querySelectorAll('#produtosBody tr').forEach(tr=>{
@@ -1001,7 +1060,11 @@
 
     const last7Map = byCampaignTotals(allSlugs, last7Start, today);
 
-    renderProdutos(last7Map, last7Start, today);
+    // Resumo rápido: igual ao Meta — últimos 7 dias completos (ontem para trás, sem hoje)
+    // comparados com os 7 dias imediatamente anteriores.
+    const dayIso = n => { const d=new Date(); d.setDate(d.getDate()-n); return d.toLocaleDateString('sv-SE'); };
+    const curFrom = dayIso(7), curTo = dayIso(1), prevFrom = dayIso(14), prevTo = dayIso(8);
+    renderProdutos(byCampaignTotals(allSlugs, curFrom, curTo), byCampaignTotals(allSlugs, prevFrom, prevTo), curFrom, curTo, prevFrom, prevTo);
     renderVerbas();
     document.getElementById('verbasPeriod').textContent = 'saldo corrido — não reseta sozinho, só com novo aporte do cliente';
 

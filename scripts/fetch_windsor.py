@@ -75,7 +75,9 @@ def main() -> int:
         return 1
 
     today = datetime.now(TZ).date()
-    last7_from = (today - timedelta(days=6)).isoformat()
+    # "Últimos 7 dias" igual ao Meta: 7 dias completos, de ontem para trás (sem hoje)
+    last7_from = (today - timedelta(days=7)).isoformat()
+    last7_to = (today - timedelta(days=1)).isoformat()
     month_from = today.replace(day=1).isoformat()
     today_s = today.isoformat()
 
@@ -87,17 +89,18 @@ def main() -> int:
         # Alcance não pode ser somado dia a dia (a mesma pessoa conta 1x no período),
         # então busca o alcance já consolidado pelo Meta para cada período.
         reach = {}
-        for key, frm in (("last7", last7_from), ("month", month_from)):
-            acc_rows = windsor(api_key, ["account_name", "reach"], frm, today_s)
-            camp_rows = windsor(api_key, ["campaign", "reach"], frm, today_s)
+        periods = (("last7", last7_from, last7_to), ("month", month_from, today_s))
+        for key, frm, to in periods:
+            acc_rows = windsor(api_key, ["account_name", "reach"], frm, to)
+            camp_rows = windsor(api_key, ["campaign", "reach"], frm, to)
             reach[key] = {
                 "account": int(sum(n(r.get("reach")) for r in acc_rows)),
                 "campaigns": {r["campaign"]: int(n(r.get("reach"))) for r in camp_rows if r.get("campaign")},
             }
-        for key, frm in (("last7", last7_from), ("month", month_from)):
+        for key, frm, to in periods:
             bd[key] = (
-                windsor(api_key, ["campaign", "gender", "age", LEAD_FIELD], frm, today_s),
-                windsor(api_key, ["campaign", "publisher_platform", "device_platform", LEAD_FIELD], frm, today_s),
+                windsor(api_key, ["campaign", "gender", "age", LEAD_FIELD], frm, to),
+                windsor(api_key, ["campaign", "publisher_platform", "device_platform", LEAD_FIELD], frm, to),
             )
     except WindsorError as e:
         print(f"::error::ERRO Windsor {e}")

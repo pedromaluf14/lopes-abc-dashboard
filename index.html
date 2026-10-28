@@ -570,8 +570,10 @@
   function periodRange(preset){
     const today = todayLocal();
     if(preset==='7d'){
-      const d = new Date(); d.setDate(d.getDate()-6);
-      return { from: d.toLocaleDateString('sv-SE'), to: today, label:'últimos 7 dias' };
+      // igual ao "Últimos 7 dias" do Meta: 7 dias completos, de ontem para trás (sem hoje)
+      const f = new Date(); f.setDate(f.getDate()-7);
+      const t = new Date(); t.setDate(t.getDate()-1);
+      return { from: f.toLocaleDateString('sv-SE'), to: t.toLocaleDateString('sv-SE'), label:'últimos 7 dias' };
     }
     if(preset==='cycle'){
       return { from: cycleStartISO(), to: today, label:'ciclo atual (dia 10)' };
@@ -1085,10 +1087,8 @@
 
   function refreshAll(){
     const today = todayLocal();
-    const last7Start = (()=>{ const d=new Date(); d.setDate(d.getDate()-6); return d.toLocaleDateString('sv-SE'); })();
     const allSlugs = PRODUCTS.map(p=>p.slug);
 
-    const last7Map = byCampaignTotals(allSlugs, last7Start, today);
 
     // Resumo rápido: igual ao Meta — últimos 7 dias completos (ontem para trás, sem hoje)
     // comparados com os 7 dias imediatamente anteriores.

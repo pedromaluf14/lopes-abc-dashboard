@@ -224,7 +224,7 @@
   .print-btn{
     display:flex; align-items:center; gap:8px; font-family:inherit; font-size:13px; font-weight:700;
     padding:10px 16px; border-radius:10px; border:1px solid var(--accent); background:var(--accent); color:#fff;
-    cursor:pointer; white-space:nowrap; box-shadow:var(--shadow); letter-spacing:.02em;
+    cursor:pointer; white-space:nowrap; box-shadow:var(--shadow);
   }
   .print-btn:hover{ filter:brightness(1.07); }
   .print-btn svg{ width:16px; height:16px; }
@@ -290,6 +290,7 @@
     background:linear-gradient(120deg, #C31655 0%, #8E0F3F 70%, #5E0A2A 100%);
     box-shadow:var(--shadow); }
   .news[hidden]{ display:none; }
+  .news.off{ display:none !important; } /* produto filtrado: destaques são da conta toda */
   .news::after{ content:""; position:absolute; right:-60px; top:-60px; width:220px; height:220px;
     border-radius:50%; background:rgba(255,255,255,.07); pointer-events:none; }
   .news-track{ display:flex; transition:transform .55s cubic-bezier(.4,.1,.2,1); }
@@ -474,7 +475,7 @@
       <div class="print-wrap">
         <button type="button" class="print-btn" id="printBtn" aria-haspopup="true" aria-expanded="false">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg>
-          IMPRIMIR RELATÓRIO
+          Imprimir relatório
         </button>
         <div class="print-menu" id="printMenu" role="dialog" aria-label="Imprimir relatório">
           <h4>Imprimir relatório (A4)</h4>
@@ -1266,6 +1267,9 @@
 
   /* ---------------- boot / refresh ---------------- */
   function refreshResumo(){
+    // Destaques da semana falam da conta toda: some quando um produto específico está filtrado
+    const nb = document.getElementById('newsBox');
+    if(nb) nb.classList.toggle('off', !!document.getElementById('resumoProduct').value);
     const preset = getActivePeriod();
     const { from, to, label } = periodRange(preset);
     const slugs = selectedSlugs();

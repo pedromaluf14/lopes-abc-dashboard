@@ -219,6 +219,72 @@
   .tip b{ font-family:"Poppins"; font-weight:600; }
 
 
+  /* ===== Imprimir relatório ===== */
+  .print-wrap{ position:relative; margin-left:auto; }
+  .print-btn{
+    display:flex; align-items:center; gap:8px; font-family:inherit; font-size:13px; font-weight:700;
+    padding:10px 16px; border-radius:10px; border:1px solid var(--accent); background:var(--accent); color:#fff;
+    cursor:pointer; white-space:nowrap; box-shadow:var(--shadow); letter-spacing:.02em;
+  }
+  .print-btn:hover{ filter:brightness(1.07); }
+  .print-btn svg{ width:16px; height:16px; }
+  .print-menu{
+    position:absolute; right:0; top:calc(100% + 8px); z-index:40; width:280px;
+    background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px 16px 16px;
+    box-shadow:0 18px 40px -12px rgba(37,25,32,.28); display:none;
+  }
+  .print-menu.open{ display:block; }
+  .print-menu h4{ margin:0 0 10px; font-size:13px; font-weight:700; color:var(--ink); }
+  .print-menu .grp{ font-size:10.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); font-weight:700; margin:12px 0 6px; }
+  .print-menu label{ display:flex; align-items:center; gap:9px; font-size:13px; font-weight:500; color:var(--ink-soft); padding:5px 2px; cursor:pointer; }
+  .print-menu input{ accent-color:var(--accent); width:16px; height:16px; margin:0; flex:none !important; padding:0 !important; min-width:0 !important; border:none; background:none; }
+  .print-menu label span{ margin-left:auto; }
+  .print-menu .orient{ display:flex; gap:6px; }
+  .print-menu .orient label{ flex:1; justify-content:center; border:1px solid var(--border); border-radius:9px; padding:7px 6px; font-weight:600; }
+  .print-menu .orient label:has(input:checked){ border-color:var(--accent); background:var(--accent-soft); color:var(--accent); }
+  .print-menu .orient input{ display:none; }
+  .print-go{ margin-top:14px; width:100%; font-family:inherit; font-size:13px; font-weight:700; padding:10px; border-radius:10px;
+    border:none; background:var(--accent); color:#fff; cursor:pointer; }
+  .print-go:disabled{ opacity:.5; cursor:default; }
+  .print-title{ display:none; }
+  @media (max-width:760px){ .print-wrap{ margin-left:0; } .print-menu{ left:0; right:auto; } }
+
+  @media print{
+    *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+    html, body{ background:#fff !important; }
+    body{ padding:0 !important; font-size:12px; zoom:.78; }
+    .grid4{ grid-template-columns:repeat(4,1fr) !important; }
+    .kpi-grid{ grid-template-columns:repeat(3,1fr) !important; }
+    .news-slide{ gap:14px; }
+    .news-fig{ min-width:96px; padding:6px 10px; }
+    .news-fig .big{ font-size:24px; }
+    .news-title{ font-size:15px; margin:2px 0; }
+    .wrap{ max-width:none; gap:10px; }
+    .tabs, .filter-row, #refreshBtn, .news-dots, .tip, .print-wrap, .cmp-toggle, #productFilter{ display:none !important; }
+    .tab-panel{ display:none !important; }
+    body.p-resumo .tab-panel[data-panel="resumo"],
+    body.p-produtos .tab-panel[data-panel="produtos"],
+    body.p-verbas .tab-panel[data-panel="verbas"]{ display:flex !important; gap:10px; }
+    body.p-resumo.p-produtos .tab-panel[data-panel="produtos"],
+    body.p-verbas.p-produtos .tab-panel[data-panel="verbas"],
+    body.p-resumo.p-verbas .tab-panel[data-panel="verbas"]{ break-before:page; }
+    .print-title{ display:block; font-size:16px; font-weight:800; color:var(--accent); margin:0 0 2px;
+      padding-bottom:6px; border-bottom:2px solid var(--accent-soft); }
+    .panel, .kpi, .kpi-hero, .tile, .dpanel, .brandbar, .masthead, .news, .tabs{ box-shadow:none !important; }
+    .panel, .dpanel, .kpis, .kpi-row, .news-slide, tr{ break-inside:avoid; }
+    .table-scroll{ max-height:none !important; overflow:visible !important; }
+    .table-scroll thead th{ position:static; }
+    .brandbar{ padding:10px 18px; }
+    .masthead{ padding:14px 20px; }
+    .news-track{ transform:none !important; flex-direction:column; }
+    .news-slide{ min-height:0; padding:12px 20px; }
+    .news-slide + .news-slide{ border-top:1px solid rgba(255,255,255,.18); }
+    .news::after{ display:none; }
+    .kpi-hero .value{ font-size:34px; }
+    #trendChart{ width:100% !important; }
+    footer{ margin-top:6px; }
+  }
+
   /* ===== Destaques da semana (carrossel automático, só notícias boas) ===== */
   .news{ position:relative; border-radius:18px; overflow:hidden; color:#fff;
     background:linear-gradient(120deg, #C31655 0%, #8E0F3F 70%, #5E0A2A 100%);
@@ -392,6 +458,7 @@
 
   <!-- ===== TAB: RESUMO GERAL ===== -->
   <div class="tab-panel active" data-panel="resumo">
+    <div class="print-title">Visão geral</div>
     <div class="filter-row" style="gap:10px;">
       <select id="resumoProduct" class="selectbox"></select>
       <div class="period-btn-group" id="resumoPeriodBtns">
@@ -404,6 +471,25 @@
         <span class="to">até</span>
         <input type="date" id="resumoCustomTo" class="datebox" />
       </span>
+      <div class="print-wrap">
+        <button type="button" class="print-btn" id="printBtn" aria-haspopup="true" aria-expanded="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/></svg>
+          IMPRIMIR RELATÓRIO
+        </button>
+        <div class="print-menu" id="printMenu" role="dialog" aria-label="Imprimir relatório">
+          <h4>Imprimir relatório (A4)</h4>
+          <div class="grp">O que imprimir</div>
+          <label><input type="checkbox" name="pSec" value="resumo" checked> Visão geral <span style="color:var(--muted);font-size:11.5px">(período escolhido)</span></label>
+          <label><input type="checkbox" name="pSec" value="produtos" checked> Resumo rápido <span style="color:var(--muted);font-size:11.5px">(7 dias)</span></label>
+          <label><input type="checkbox" name="pSec" value="verbas" checked> Verbas</label>
+          <div class="grp">Orientação</div>
+          <div class="orient">
+            <label><input type="radio" name="pOri" value="portrait" checked> Retrato</label>
+            <label><input type="radio" name="pOri" value="landscape"> Paisagem</label>
+          </div>
+          <button type="button" class="print-go" id="printGo">Imprimir</button>
+        </div>
+      </div>
     </div>
     <div class="period"><span>&#128197;</span> <span id="resumoPeriod">—</span></div>
     <div class="kpis">
@@ -478,6 +564,7 @@
 
   <!-- ===== TAB: PRODUTOS ===== -->
   <div class="tab-panel" data-panel="produtos">
+    <div class="print-title">Resumo rápido — últimos 7 dias</div>
     <div class="period"><span>&#128197;</span> <span id="produtosPeriod">—</span></div>
     <div class="panel">
       <div class="filter-row">
@@ -504,6 +591,7 @@
 
   <!-- ===== TAB: VERBAS ===== -->
   <div class="tab-panel" data-panel="verbas">
+    <div class="print-title">Verbas</div>
     <div class="period"><span>&#128197;</span> <span id="verbasPeriod">Saldo corrido</span></div>
     <div class="panel">
       <div class="panel-sub" style="margin-bottom:10px">Verba: soma de tudo que o cliente já enviou (atualizado pelo time via chat a cada novo aporte, nunca reseta sozinho) · Investido: acumulado desde 1º/jan/2026 (início do acompanhamento de verba), atualizado por hora · Gasto hoje: gasto do dia mais recente, somando os conjuntos do produto · Saldo: Verba − Investido · Válida até: data até quando a verba atual deve cobrir, conforme informado pelo cliente · Progresso: quanto da verba disponível no ciclo atual (desde o dia 10) já foi gasto — verde = dentro do ritmo até a data “Válida até”, amarelo/laranja = gastando mais rápido que o prazo, vermelho = verba estourada</div>
@@ -764,6 +852,30 @@
     refreshIcon: document.getElementById('refreshIcon'),
     updatedAt: document.getElementById('updatedAt'),
   };
+
+  /* ---------------- imprimir relatório (A4) ---------------- */
+  (function(){
+    const btn = document.getElementById('printBtn'), menu = document.getElementById('printMenu'), go = document.getElementById('printGo');
+    const secs = () => [...menu.querySelectorAll('input[name="pSec"]:checked')].map(i=>i.value);
+    const toggle = open => { menu.classList.toggle('open', open); btn.setAttribute('aria-expanded', open ? 'true' : 'false'); };
+    btn.addEventListener('click', e => { e.stopPropagation(); toggle(!menu.classList.contains('open')); });
+    menu.addEventListener('click', e => e.stopPropagation());
+    document.addEventListener('click', () => toggle(false));
+    document.addEventListener('keydown', e => { if(e.key === 'Escape') toggle(false); });
+    menu.querySelectorAll('input[name="pSec"]').forEach(i => i.addEventListener('change', () => { go.disabled = !secs().length; }));
+    let pageStyle = document.getElementById('printPageStyle');
+    if(!pageStyle){ pageStyle = document.createElement('style'); pageStyle.id = 'printPageStyle'; document.head.appendChild(pageStyle); }
+    go.addEventListener('click', () => {
+      const s = secs(); if(!s.length) return;
+      const ori = menu.querySelector('input[name="pOri"]:checked').value;
+      pageStyle.textContent = `@page{ size: A4 ${ori}; margin: 10mm; }`;
+      document.body.classList.remove('p-resumo','p-produtos','p-verbas');
+      s.forEach(x => document.body.classList.add('p-' + x));
+      toggle(false);
+      setTimeout(() => window.print(), 50);
+    });
+    window.addEventListener('afterprint', () => document.body.classList.remove('p-resumo','p-produtos','p-verbas'));
+  })();
 
   /* ---------------- tabs ---------------- */
   document.querySelectorAll('.tab-btn').forEach(btn=>{

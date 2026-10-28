@@ -84,6 +84,16 @@ def main() -> int:
             ["date", "campaign", "spend", "impressions", "link_clicks", LEAD_FIELD, "reach"],
             START_DATE, today_s)
         bd = {}
+        # Alcance não pode ser somado dia a dia (a mesma pessoa conta 1x no período),
+        # então busca o alcance já consolidado pelo Meta para cada período.
+        reach = {}
+        for key, frm in (("last7", last7_from), ("month", month_from)):
+            acc_rows = windsor(api_key, ["account_name", "reach"], frm, today_s)
+            camp_rows = windsor(api_key, ["campaign", "reach"], frm, today_s)
+            reach[key] = {
+                "account": int(sum(n(r.get("reach")) for r in acc_rows)),
+                "campaigns": {r["campaign"]: int(n(r.get("reach"))) for r in camp_rows if r.get("campaign")},
+            }
         for key, frm in (("last7", last7_from), ("month", month_from)):
             bd[key] = (
                 windsor(api_key, ["campaign", "gender", "age", LEAD_FIELD], frm, today_s),
@@ -149,6 +159,7 @@ def main() -> int:
         "updatedAt": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "account": "Lopes ABC",
         "campaigns": campaigns,
+        "reach": reach,
     }
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, separators=(",", ":"))

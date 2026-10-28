@@ -283,6 +283,7 @@
   .pill.warn{ color:var(--warn); background:var(--warn-bg); }
   .pill.critical{ color:var(--critical); background:var(--critical-bg); }
   .pill.bad{ color:var(--bad); background:var(--bad-bg); }
+  .pill.neutral-pill{ color:var(--muted); background:var(--surface-2); border:1px solid var(--border); font-weight:600; vertical-align:middle; margin-left:6px; }
   .pill .dot{ width:6px; height:6px; border-radius:50%; background:currentColor; }
 
   .skeleton{ background:linear-gradient(90deg,var(--surface-2),var(--border),var(--surface-2)); background-size:200% 100%; animation:sk 1.3s ease infinite; border-radius:6px; color:transparent!important; }
@@ -538,6 +539,18 @@
   const metricsCache = {}; // preenchido a partir de metrics.json (atualizado a cada hora pelo GitHub Actions)
   PRODUCTS.forEach(p => budgets[p.slug] = p.seedTotal);
 
+  // VISÃO GERAL = a conta inteira, igual ao Meta: produtos ativos (PRODUCTS) + toda
+  // campanha encerrada que tiver dados no período (ex.: Now Campestre). Montada em loadData().
+  // Resumo rápido e Verbas continuam usando só PRODUCTS (ativos).
+  let OVERVIEW = PRODUCTS.slice();
+  let REACH = {}; // alcance consolidado pelo Meta: { last7|month: { account, campaigns:{nome:n} } }
+  const PRETTY_NAMES = { 'Now': 'Now Campestre' };
+  function prettyCampaignName(c){
+    const m = c.match(/LUZIAC_([A-Za-z0-9]+)-/);
+    if(!m) return c;
+    return PRETTY_NAMES[m[1]] || m[1].replace(/([a-z])([A-Z])/g, '$1 $2');
+  }
+
   function cycleStart(){
     const d = new Date();
     const day = d.getDate();
@@ -598,13 +611,13 @@
 
   function selectedSlugs(){
     const v = document.getElementById('resumoProduct').value;
-    if(!v) return PRODUCTS.map(p=>p.slug);
+    if(!v) return OVERVIEW.map(p=>p.slug);
     return [v];
   }
   function selectedLabel(){
     const v = document.getElementById('resumoProduct').value;
     if(!v) return 'Todos os produtos';
-    return PRODUCTS.find(p=>p.slug===v).label;
+    return OVERVIEW.find(p=>p.slug===v).label;
   }
 
   /* ---------------- cache aggregation (dados vêm do db, atualizados por hora) ---------------- */
@@ -648,7 +661,7 @@
   function byCampaignTotals(slugs, from, to){
     const map = {};
     slugs.forEach(slug=>{
-      const p = PRODUCTS.find(pp=>pp.slug===slug);
+      const p = OVERVIEW.find(pp=>pp.slug===slug);
       const t = sumTotals([slug], from, to);
       map[p.campaign] = { leads: t.leads, spend: t.spend };
     });
@@ -667,8 +680,14 @@
 
   function populateProductSelect(){
     const sel = document.getElementById('resumoProduct');
+    const prev = sel.value;
+    // encerradas: só as que gastaram nos últimos 60 dias (as antigas seguem somando em "Todos")
+    const since = (()=>{ const d=new Date(); d.setDate(d.getDate()-60); return d.toLocaleDateString('sv-SE'); })();
+    const ended = OVERVIEW.filter(p=>p.encerrada && sumTotals([p.slug], since, todayLocal()).spend > 0);
     sel.innerHTML = '<option value="">Todos os produtos</option>' +
-      PRODUCTS.map(p=>`<option value="${p.slug}">${p.label}</option>`).join('');
+      PRODUCTS.map(p=>`<option value="${p.slug}">${p.label}</option>`).join('') +
+      (ended.length ? '<optgroup label="Encerradas">' + ended.map(p=>`<option value="${p.slug}">${p.label}</option>`).join('') + '</optgroup>' : '');
+    if([...sel.options].some(o=>o.value===prev)) sel.value = prev;
   }
 
   const els = {
@@ -785,10 +804,12 @@
   }
 
   /* ---------------- render: resumo ---------------- */
-  function renderResumo(totals, dateFrom, dateTo, periodLabel){
+  function renderResumo(totals, dateFrom, dateTo, periodLabel, reachValue){
     document.getElementById('resumoPeriod').textContent = `${fmtDatePt(dateFrom)} – ${fmtDatePt(dateTo)} (${periodLabel})`;
     document.getElementById('resumoLeads').textContent = INT(totals.actions_lead);
-    document.getElementById('resumoReach').textContent = `via formulário de anúncio · alcance de ${INT(totals.reach)} pessoas`;
+    document.getElementById('resumoReach').textContent = reachValue != null
+      ? `leads de formulário do Meta · alcance de ${INT(reachValue)} pessoas`
+      : 'leads de formulário do Meta';
     document.getElementById('resumoSpend').textContent = BRL(totals.spend);
     document.getElementById('resumoCpl').textContent = BRL(totals.cost_per_action_type_lead);
     document.getElementById('resumoImpr').textContent = INT(totals.impressions);
@@ -868,9 +889,10 @@
   function renderCampanhas(rowsMap, campaignFilter){
     const tbody = document.getElementById('campanhasBody');
     tbody.innerHTML = '';
-    const list = campaignFilter
-      ? PRODUCTS.filter(p=>p.campaign===campaignFilter)
-      : PRODUCTS;
+    // ativos sempre aparecem; encerrados só se tiveram gasto ou lead no período
+    const list = (campaignFilter
+      ? OVERVIEW.filter(p=>p.campaign===campaignFilter)
+      : OVERVIEW).filter(p=>!p.encerrada || ((rowsMap[p.campaign]||{}).spend>0 || (rowsMap[p.campaign]||{}).leads>0));
     const maxLeads = Math.max(...list.map(p=>(rowsMap[p.campaign]||{}).leads||0), 1);
     list.forEach(p=>{
       const row = rowsMap[p.campaign] || {leads:0, spend:0};
@@ -878,7 +900,7 @@
       const w = Math.max(3, Math.round(100*row.leads/maxLeads));
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td class="name">${p.label}</td>
+        <td class="name">${p.label}${p.encerrada ? ' <span class="pill neutral-pill">encerrada</span>' : ''}</td>
         <td class="num-col"><div class="leadbar"><div class="track2"><div class="fill2" style="width:${w}%"></div></div><span class="n num">${INT(row.leads)}</span></div></td>
         <td class="num-col num">${row.leads>0 ? BRL(cpl) : '—'}</td>
         <td class="num-col num">${BRL(row.spend)}</td>`;
@@ -1037,14 +1059,25 @@
     const { from, to, label } = periodRange(preset);
     const slugs = selectedSlugs();
     const prodLabel = selectedLabel();
-    const fullLabel = slugs.length===PRODUCTS.length ? label : `${label} · ${prodLabel}`;
+    const fullLabel = slugs.length===OVERVIEW.length ? label : `${label} · ${prodLabel}`;
 
     const totals = computeTotals(slugs, from, to);
     const daily = dailySeriesFor(slugs, from, to);
-    const byCampaign = byCampaignTotals(PRODUCTS.map(p=>p.slug), from, to);
-    const filterCampaign = slugs.length===1 ? PRODUCTS.find(p=>p.slug===slugs[0]).campaign : null;
+    const byCampaign = byCampaignTotals(OVERVIEW.map(p=>p.slug), from, to);
+    const filterCampaign = slugs.length===1 ? OVERVIEW.find(p=>p.slug===slugs[0]).campaign : null;
 
-    renderResumo(totals, from, to, fullLabel);
+    // Alcance: valor consolidado do Meta (só existe para "Últimos 7 dias" e "Mês corrente")
+    let reachValue = null;
+    const rk = preset==='7d' ? 'last7' : (preset==='month' ? 'month' : null);
+    if(rk && REACH[rk]){
+      if(slugs.length===OVERVIEW.length) reachValue = REACH[rk].account;
+      else {
+        const p = OVERVIEW.find(pp=>pp.slug===slugs[0]);
+        const cs = [p.campaign].concat(p.alsoCampaigns || []).filter(c => REACH[rk].campaigns[c] != null);
+        if(cs.length===1) reachValue = REACH[rk].campaigns[cs[0]];
+      }
+    }
+    renderResumo(totals, from, to, fullLabel, reachValue);
     renderTrend(daily, fullLabel);
     renderCampanhas(byCampaign, filterCampaign);
 
@@ -1128,6 +1161,15 @@
       });
       metricsCache[p.slug] = { campaign: p.campaign, daily: Object.values(byDay).sort((a,b) => a.d < b.d ? -1 : 1), breakdown };
     });
+    const claimed = new Set(PRODUCTS.flatMap(p => [p.campaign].concat(p.alsoCampaigns || [])));
+    const extras = Object.keys(all).filter(c => !claimed.has(c)).sort().map((c, i) => {
+      const slug = 'enc-' + i;
+      metricsCache[slug] = all[c];
+      return { slug, label: prettyCampaignName(c), campaign: c, encerrada: true };
+    });
+    OVERVIEW = PRODUCTS.concat(extras);
+    REACH = raw.reach || {};
+    populateProductSelect();
     BUILD_TIME = raw.updatedAt;
   }
 

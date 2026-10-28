@@ -146,6 +146,14 @@
   .kpi .label{ font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); font-weight:600; }
   .kpi .value{ font-size:20px; font-weight:600; color:var(--ink); line-height:1.15; }
   @media (max-width:760px){ .kpi-grid{ grid-template-columns: 1fr 1fr; } .kpi-hero .value{ font-size:34px; } }
+  .kpi-grid-3{ grid-template-columns:repeat(3,1fr); }
+  .kpi{ min-width:0; }
+  .kpi .value{ overflow-wrap:anywhere; }
+  @media (max-width:760px){
+    .kpi-grid-3{ grid-template-columns:1fr 1fr; }
+    .kpi-grid-3 > .kpi:first-child{ grid-column:1 / -1; }
+    .kpi .value{ font-size:19px; }
+  }
 
   /* funil + dados secundários (mesma linguagem visual das páginas por produto) */
   .kpi-row{ display:flex; gap:12px; align-items:stretch; flex-wrap:wrap; }
@@ -385,7 +393,7 @@
         </div>
         <div class="sub" id="resumoReach">via formulário de anúncio</div>
       </div>
-      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+      <div class="kpi-grid kpi-grid-3">
         <div class="kpi"><div class="label">Investimento</div><div class="value num" id="resumoSpend">—</div></div>
         <div class="kpi"><div class="label">Custo por lead</div><div class="value num" id="resumoCpl">—</div></div>
         <div class="kpi"><div class="label">Impressões</div><div class="value num" id="resumoImpr">—</div></div>
@@ -398,7 +406,7 @@
     <div class="panel">
       <h3>Leads por dia</h3>
       <div class="panel-sub" id="trendSub">&nbsp;</div>
-      <div id="trendWrap" style="width:100%; overflow-x:auto;"><svg id="trendChart" width="100%" height="190" viewBox="0 0 900 190" preserveAspectRatio="none" style="width:100%; height:190px; display:block;"></svg></div>
+      <div id="trendWrap" style="width:100%;"><svg id="trendChart" width="100%" height="190" viewBox="0 0 900 190" style="width:100%; height:190px; display:block; overflow:visible;"></svg></div>
     </div>
 
     <div class="panel">
@@ -743,6 +751,8 @@
       document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
       btn.classList.add('active');
       document.querySelector(`.tab-panel[data-panel="${btn.dataset.tab}"]`).classList.add('active');
+      // o gráfico só sabe a própria largura quando a aba está visível
+      if(btn.dataset.tab === 'resumo' && typeof lastTrend !== 'undefined' && lastTrend) renderTrend(...lastTrend);
     });
   });
 
@@ -867,64 +877,92 @@
     document.getElementById('resumoFunnelPct2').textContent = clicks>0 ? PCT(leads/clicks) : '—';
   }
 
+  // Gráfico de leads por dia. Desenhado na largura REAL do container (sem esticar),
+  // para que números e datas fiquem nítidos no celular. Quando não cabe um número
+  // em cada ponto, mostra só o maior, o menor e o último; o resto aparece ao tocar
+  // ou passar o mouse no ponto.
+  let lastTrend = null;
   function renderTrend(rows, periodLabel){
+    lastTrend = [rows, periodLabel];
     document.getElementById('trendSub').textContent = `leads por dia · ${periodLabel}`;
     const svg = document.getElementById('trendChart');
     svg.innerHTML = '';
     const ns = 'http://www.w3.org/2000/svg';
-    const W = 900, H = 190, padL = 30, padR = 14, padT = 24, padB = 24;
+    const wrap = document.getElementById('trendWrap');
+    const W = Math.max(260, Math.round(wrap.clientWidth || 900));
+    const narrow = W < 560;
+    const H = narrow ? 200 : 190, padL = 26, padR = 14, padT = 24, padB = 26;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.setAttribute('height', H);
+    svg.style.height = H + 'px';
     const plotW = W - padL - padR, plotH = H - padT - padB;
     if(!rows.length){ return; }
     const max = Math.max(...rows.map(r=>r.leads), 1);
     const n = rows.length;
     const x = i => padL + (n<=1 ? plotW/2 : plotW * i/(n-1));
     const y = v => padT + plotH - (plotH * v/max);
+    const el = (tag, attrs) => { const e = document.createElementNS(ns, tag); Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v)); svg.appendChild(e); return e; };
+    const fs = narrow ? 10 : 10.5;
 
     [0, 0.5, 1].forEach(f=>{
       const gy = padT + plotH*(1-f);
-      const line = document.createElementNS(ns,'line');
-      line.setAttribute('x1',padL); line.setAttribute('x2',W-padR);
-      line.setAttribute('y1',gy); line.setAttribute('y2',gy);
-      line.setAttribute('stroke','var(--border)'); line.setAttribute('stroke-width','1');
-      svg.appendChild(line);
-      const lbl = document.createElementNS(ns,'text');
-      lbl.setAttribute('x',4); lbl.setAttribute('y',gy+4);
-      lbl.setAttribute('font-size','10'); lbl.setAttribute('fill','var(--muted)'); lbl.setAttribute('font-family',"Poppins");
-      lbl.textContent = Math.round(max*f);
-      svg.appendChild(lbl);
+      el('line', {x1:padL, x2:W-padR, y1:gy, y2:gy, stroke:'var(--border)', 'stroke-width':1});
+      el('text', {x:2, y:gy+4, 'font-size':10, fill:'var(--muted)', 'font-family':'Poppins'}).textContent = Math.round(max*f);
     });
 
-    const pts = rows.map((r,i)=>`${x(i)},${y(r.leads)}`).join(' ');
-    const poly = document.createElementNS(ns,'polyline');
-    poly.setAttribute('points', pts);
-    poly.setAttribute('fill','none'); poly.setAttribute('stroke','var(--accent)'); poly.setAttribute('stroke-width','2.5');
-    poly.setAttribute('stroke-linejoin','round'); poly.setAttribute('stroke-linecap','round');
-    svg.appendChild(poly);
+    // área suave embaixo da linha
+    const pts = rows.map((r,i)=>`${x(i)},${y(r.leads)}`);
+    el('polygon', {points:`${x(0)},${padT+plotH} ${pts.join(' ')} ${x(n-1)},${padT+plotH}`, fill:'var(--accent)', opacity:0.07});
+    el('polyline', {points:pts.join(' '), fill:'none', stroke:'var(--accent)', 'stroke-width':narrow?2:2.5, 'stroke-linejoin':'round', 'stroke-linecap':'round'});
 
-    const step = Math.ceil(n/8);
+    // quais pontos ganham número fixo
+    const spacing = plotW / Math.max(1, n-1);
+    const showAll = spacing >= 24;
+    const keep = new Set();
+    if(!showAll){
+      let iMax = 0, iMin = 0;
+      rows.forEach((r,i)=>{ if(r.leads > rows[iMax].leads) iMax = i; if(r.leads < rows[iMin].leads) iMin = i; });
+      keep.add(iMax); keep.add(n-1);
+      if(Math.abs(iMin - iMax) * spacing > 22 && Math.abs(iMin - (n-1)) * spacing > 22) keep.add(iMin);
+    }
+
+    // datas no eixo: só o que cabe (~1 a cada 46px), sempre a última
+    const maxLabels = Math.max(2, Math.floor(plotW / 46));
+    const step = Math.ceil(n / maxLabels);
+
     rows.forEach((r,i)=>{
       const cx = x(i), cy = y(r.leads);
-      const dot = document.createElementNS(ns,'circle');
-      dot.setAttribute('cx',cx); dot.setAttribute('cy',cy); dot.setAttribute('r','3.2');
-      dot.setAttribute('fill','var(--accent)');
-      svg.appendChild(dot);
-
-      const val = document.createElementNS(ns,'text');
-      val.setAttribute('x',cx); val.setAttribute('y',cy-8); val.setAttribute('text-anchor','middle');
-      val.setAttribute('font-size','10.5'); val.setAttribute('fill','var(--accent)'); val.setAttribute('font-family',"Poppins"); val.setAttribute('font-weight','600');
-      val.textContent = r.leads;
-      svg.appendChild(val);
-
-      if(i%step===0 || i===n-1){
-        const [yy,mm,dd] = r.date.split('-');
-        const xl = document.createElementNS(ns,'text');
-        xl.setAttribute('x',cx); xl.setAttribute('y',H-6); xl.setAttribute('text-anchor','middle');
-        xl.setAttribute('font-size','10'); xl.setAttribute('fill','var(--muted)');
-        xl.textContent = `${dd}/${mm}`;
-        svg.appendChild(xl);
+      const isKey = showAll || keep.has(i);
+      el('circle', {cx, cy, r: isKey ? (narrow?3.2:3.4) : (narrow?2.2:3), fill:'var(--accent)'});
+      if(isKey){
+        // não deixar o número sair pelas bordas
+        const anchor = cx < padL + 10 ? 'start' : (cx > W - padR - 10 ? 'end' : 'middle');
+        el('text', {x:cx, y:cy-8, 'text-anchor':anchor, 'font-size':fs, fill:'var(--accent)', 'font-family':'Poppins', 'font-weight':600}).textContent = r.leads;
       }
+      const lastLbl = i === n-1, regular = i % step === 0 && (n-1-i) >= step*0.6;
+      if(lastLbl || regular){
+        const [yy,mm,dd] = r.date.split('-');
+        const anchor = i === 0 ? 'start' : (lastLbl ? 'end' : 'middle');
+        el('text', {x:cx, y:H-7, 'text-anchor':anchor, 'font-size':10, fill:'var(--muted)', 'font-family':'Poppins'}).textContent = `${dd}/${mm}`;
+      }
+      // área invisível para tocar/passar o mouse e ver o valor do dia
+      const hit = el('rect', {x: cx - spacing/2, y: padT - 10, width: Math.max(spacing, 8), height: plotH + 10, fill:'transparent'});
+      const [yy,mm,dd] = r.date.split('-');
+      const html = `${dd}/${mm}: <b>${INT(r.leads)}</b> ${r.leads===1?'lead':'leads'}`;
+      hit.addEventListener('mousemove', e=>showTip(html, e));
+      hit.addEventListener('mouseleave', hideTip);
+      hit.addEventListener('touchstart', e=>{ showTip(html, e.touches[0]); }, {passive:true});
     });
   }
+  let trendResizeT = null, trendLastW = 0;
+  window.addEventListener('resize', ()=>{
+    clearTimeout(trendResizeT);
+    trendResizeT = setTimeout(()=>{
+      const w = document.getElementById('trendWrap').clientWidth;
+      if(lastTrend && w !== trendLastW){ trendLastW = w; renderTrend(...lastTrend); }
+    }, 150);
+  });
+  document.addEventListener('touchstart', e=>{ if(!e.target.closest('#trendChart')) hideTip(); }, {passive:true});
 
   function renderCampanhas(rowsMap, campaignFilter){
     const tbody = document.getElementById('campanhasBody');

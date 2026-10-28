@@ -479,7 +479,9 @@
   function todaySpend(slug){
     const doc = metricsCache[slug];
     if(!doc || !doc.daily || !doc.daily.length) return 0;
-    return doc.daily[doc.daily.length - 1].spend || 0;
+    const last = doc.daily[doc.daily.length - 1];
+    // só conta se o último dia com dados for hoje (campanha pausada = R$ 0 hoje)
+    return last.d === todayLocal() ? (last.spend || 0) : 0;
   }
   // Gasto desde que o produto começou a rodar de fato (inclui histórico anterior a
   // 2026 quando existir) — é só informativo, usado no "Gasto total" do Resumo

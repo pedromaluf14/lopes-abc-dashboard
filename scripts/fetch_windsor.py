@@ -26,6 +26,9 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 ACCOUNT_ID = "854204220059560"  # Lopes ABC (Meta Ads)
+# Lead = "Leads (formulário)" do Gerenciador de Anúncios (formulário instantâneo/Messenger
+# dentro do Facebook/Instagram). NÃO inclui leads do pixel do site, para bater com o Meta.
+LEAD_FIELD = "actions_onsite_conversion_lead_grouped"
 START_DATE = "2026-01-01"       # início do acompanhamento de verba
 TZ = timezone(timedelta(hours=-3))  # America/Sao_Paulo
 OUT = os.path.join(os.path.dirname(__file__), "..", "metrics.json")
@@ -78,13 +81,13 @@ def main() -> int:
 
     try:
         daily_rows = windsor(api_key,
-            ["date", "campaign", "spend", "impressions", "link_clicks", "actions_lead", "reach"],
+            ["date", "campaign", "spend", "impressions", "link_clicks", LEAD_FIELD, "reach"],
             START_DATE, today_s)
         bd = {}
         for key, frm in (("last7", last7_from), ("month", month_from)):
             bd[key] = (
-                windsor(api_key, ["campaign", "gender", "age", "actions_lead"], frm, today_s),
-                windsor(api_key, ["campaign", "publisher_platform", "device_platform", "actions_lead"], frm, today_s),
+                windsor(api_key, ["campaign", "gender", "age", LEAD_FIELD], frm, today_s),
+                windsor(api_key, ["campaign", "publisher_platform", "device_platform", LEAD_FIELD], frm, today_s),
             )
     except WindsorError as e:
         print(f"::error::ERRO Windsor {e}")
@@ -105,7 +108,7 @@ def main() -> int:
         x["spend"] += n(r.get("spend"))
         x["impr"] += int(n(r.get("impressions")))
         x["clicks"] += int(n(r.get("link_clicks")))
-        x["leads"] += int(n(r.get("actions_lead")))
+        x["leads"] += int(n(r.get(LEAD_FIELD)))
         x["reach"] += int(n(r.get("reach")))
 
     campaigns = {}
@@ -128,14 +131,14 @@ def main() -> int:
             c = r.get("campaign")
             if not c:
                 continue
-            leads = int(n(r.get("actions_lead")))
+            leads = int(n(r.get(LEAD_FIELD)))
             acc[c]["gender"][r.get("gender") or "unknown"] += leads
             acc[c]["age"][r.get("age") or "unknown"] += leads
         for r in pd_rows:
             c = r.get("campaign")
             if not c:
                 continue
-            leads = int(n(r.get("actions_lead")))
+            leads = int(n(r.get(LEAD_FIELD)))
             acc[c]["platform"][r.get("publisher_platform") or "unknown"] += leads
             acc[c]["device"][r.get("device_platform") or "unknown"] += leads
         for c, dims in acc.items():

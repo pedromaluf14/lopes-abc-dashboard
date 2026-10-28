@@ -446,7 +446,7 @@
 <script>
 (function(){
   const PRODUCTS = [
-    { slug:'now',                   label:'Now Campestre',          campaign:'FB-STO-INC-LUZIAC_Now-STA_emp_000242_prod_REM25700',              seedTotal:6020  },
+    { slug:'now',                   label:'Now Campestre',          campaign:'FB-STO-INC-LUZIAC_Now-STA_emp_000242_prod_REM25700',              seedTotal:6020, semVerba:true  },
     { slug:'start-joy',             label:'Start Joy',              campaign:'FB-STO-INC-LUZIAC_StartJoy-SBC_emp_000242_prod_REM23332',         seedTotal:18688 },
     { slug:'landscape',             label:'Landscape',              campaign:'FB-STO-INC-LUZIAC_Landscape-STA_emp_000242_prod_REM24165',        seedTotal:27319 },
     { slug:'ilha-murano',           label:'Ilha Murano',            campaign:'FB-STO-INC-LUZIAC_IlhaMurano-STA_emp_000242_prod_REM22567',       seedTotal:20633 },
@@ -924,7 +924,8 @@
   function buildVerbasTable(){
     const tbody = document.getElementById('verbasBody');
     tbody.innerHTML = '';
-    PRODUCTS.forEach(p=>{
+    // semVerba:true = produto sem controle de verba (não aparece na aba Verbas)
+    PRODUCTS.filter(p=>!p.semVerba).forEach(p=>{
       const tr = document.createElement('tr');
       tr.dataset.slug = p.slug;
       const validUntil = VERBA_VALID_UNTIL[p.slug];
@@ -947,7 +948,7 @@
   }
 
   function renderVerbas(){
-    PRODUCTS.forEach(p=>{
+    PRODUCTS.filter(p=>!p.semVerba).forEach(p=>{
       paintVerbaRow(p.slug, ytdSpend(p.slug), todaySpend(p.slug));
     });
   }

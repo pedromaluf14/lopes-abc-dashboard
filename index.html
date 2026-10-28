@@ -195,6 +195,37 @@
   .tip.show{ opacity:1; }
   .tip b{ font-family:"Poppins"; font-weight:600; }
 
+
+  /* ===== Destaques da semana (carrossel automático, só notícias boas) ===== */
+  .news{ position:relative; border-radius:18px; overflow:hidden; color:#fff;
+    background:linear-gradient(120deg, #C31655 0%, #8E0F3F 70%, #5E0A2A 100%);
+    box-shadow:var(--shadow); }
+  .news[hidden]{ display:none; }
+  .news::after{ content:""; position:absolute; right:-60px; top:-60px; width:220px; height:220px;
+    border-radius:50%; background:rgba(255,255,255,.07); pointer-events:none; }
+  .news-track{ display:flex; transition:transform .55s cubic-bezier(.4,.1,.2,1); }
+  .news-slide{ flex:0 0 100%; display:flex; align-items:center; gap:22px; padding:22px 26px 34px; box-sizing:border-box; min-height:132px; }
+  .news-fig{ flex:none; min-width:116px; text-align:center; padding:10px 14px; border-radius:14px;
+    background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.22); }
+  .news-fig .big{ font-size:32px; font-weight:800; line-height:1; letter-spacing:-.01em; }
+  .news-fig .unit{ font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; opacity:.85; font-weight:700; margin-top:5px; }
+  .news-kicker{ font-size:10.5px; text-transform:uppercase; letter-spacing:.12em; font-weight:700; opacity:.8; display:flex; align-items:center; gap:6px; }
+  .news-kicker .dot{ width:6px; height:6px; border-radius:50%; background:#7CF0B5; box-shadow:0 0 0 3px rgba(124,240,181,.25); }
+  .news-title{ font-size:19px; font-weight:700; line-height:1.25; margin:5px 0 4px; text-wrap:balance; }
+  .news-sub{ font-size:12.5px; opacity:.85; font-weight:500; }
+  .news-dots{ position:absolute; left:0; right:0; bottom:11px; display:flex; justify-content:center; gap:7px; }
+  .news{ touch-action:pan-y; user-select:none; -webkit-user-select:none; }
+  .news.multi{ cursor:grab; }
+  .news.dragging{ cursor:grabbing; }
+  .news-dots button{ width:7px; height:7px; padding:0; border:none; border-radius:999px; background:rgba(255,255,255,.4); cursor:pointer; transition:width .3s, background .3s; }
+  .news-dots button.on{ width:22px; background:#fff; }
+  @media (max-width:760px){
+    .news-slide{ flex-direction:column; align-items:flex-start; gap:12px; padding:18px 18px 32px; }
+    .news-fig{ min-width:0; display:flex; align-items:baseline; gap:8px; padding:8px 12px; }
+    .news-fig .unit{ margin-top:0; }
+    .news-title{ font-size:16.5px; }
+  }
+  @media (prefers-reduced-motion: reduce){ .news-track{ transition:none; } }
   .panel{
     background:var(--surface); border:1px solid var(--border); border-radius:16px;
     padding:18px 20px; box-shadow:var(--shadow);
@@ -359,6 +390,10 @@
         <div class="kpi"><div class="label">Custo por lead</div><div class="value num" id="resumoCpl">—</div></div>
         <div class="kpi"><div class="label">Impressões</div><div class="value num" id="resumoImpr">—</div></div>
       </div>
+    </div>
+    <div class="news" id="newsBox" hidden aria-roledescription="carrossel" aria-label="Destaques da semana">
+      <div class="news-track" id="newsTrack"></div>
+      <div class="news-dots" id="newsDots"></div>
     </div>
     <div class="panel">
       <h3>Leads por dia</h3>
@@ -1091,6 +1126,158 @@
     renderDonuts(slugs, periodKey, periodNote);
   }
 
+
+  // ===== DESTAQUES DA SEMANA =====
+  // Carrossel automático com até 3 notícias BOAS, calculadas com os números do Meta:
+  // últimos 7 dias completos (ontem para trás) contra os 7 anteriores — o mesmo
+  // comparativo do Resumo rápido. Só produtos ativos (PRODUCTS), exceto "melhor dia
+  // do mês", que usa a conta inteira. Regras para evitar notícia fraca ou exagerada:
+  //   - CPL de produto caiu ≥10%, com ≥10 leads nas duas semanas
+  //   - leads de produto subiram ≥15%, com ≥10 leads nas duas semanas
+  //   - conta (produtos ativos): leads subiram ≥10% ou CPL caiu ≥10%, com ≥20 leads
+  //   - melhor dia de leads do mês, se caiu nos últimos 7 dias e o mês já tem ≥7 dias
+  //   - "menor CPL da semana" só entra para completar, se já houver outra notícia
+  // No máximo uma notícia por produto. Sem nada bom na semana, o carrossel some.
+  const NEWS = { MIN_LEADS:10, MIN_PREV:10, CPL_DROP:0.10, LEADS_UP:0.15, ACC_UP:0.10, ACC_MIN:20, MAX:3, ROTATE_MS:6500 };
+  let newsTimer = null, newsIdx = 0;
+
+  function buildNews(){
+    const dayIso = n => { const d=new Date(); d.setDate(d.getDate()-n); return d.toLocaleDateString('sv-SE'); };
+    const curFrom = dayIso(7), curTo = dayIso(1), prevFrom = dayIso(14), prevTo = dayIso(8);
+    const pctTxt = x => Math.round(Math.abs(x)*100) + '%';
+    const cmpSub = 'últimos 7 dias vs. 7 dias anteriores';
+    const items = [];
+
+    PRODUCTS.forEach(p=>{
+      const c = sumTotals([p.slug], curFrom, curTo), v = sumTotals([p.slug], prevFrom, prevTo);
+      const best = [];
+      if(c.leads >= NEWS.MIN_LEADS && v.leads >= NEWS.MIN_LEADS){
+        const cplC = c.spend/c.leads, cplP = v.spend/v.leads, drop = 1 - cplC/cplP;
+        if(drop >= NEWS.CPL_DROP) best.push({ score: drop*100 + 5, slug:p.slug,
+          big: '−' + pctTxt(drop), unit:'custo por lead',
+          title: `Custo por lead do ${p.label} caiu ${pctTxt(drop)}`,
+          sub: `${BRL(cplP)} → ${BRL(cplC)} · ${cmpSub}` });
+      }
+      if(c.leads >= NEWS.MIN_LEADS && v.leads >= NEWS.MIN_PREV){
+        const up = c.leads/v.leads - 1;
+        if(up >= NEWS.LEADS_UP) best.push({ score: up*100*0.8, slug:p.slug,
+          big: '+' + pctTxt(up), unit:'leads',
+          title: `${p.label} gerou ${pctTxt(up)} mais leads`,
+          sub: `${INT(v.leads)} → ${INT(c.leads)} leads · ${cmpSub}` });
+      }
+      best.sort((a,b)=>b.score-a.score);
+      if(best.length) items.push(best[0]);
+    });
+
+    // Conta (produtos ativos somados)
+    const all = PRODUCTS.map(p=>p.slug);
+    const ac = sumTotals(all, curFrom, curTo), ap = sumTotals(all, prevFrom, prevTo);
+    if(ac.leads >= NEWS.ACC_MIN && ap.leads >= NEWS.ACC_MIN){
+      const up = ac.leads/ap.leads - 1, drop = 1 - (ac.spend/ac.leads)/(ap.spend/ap.leads);
+      if(up >= NEWS.ACC_UP) items.push({ score: up*100 + 15, slug:'_acc',
+        big: '+' + pctTxt(up), unit:'leads',
+        title: `As campanhas geraram ${pctTxt(up)} mais leads na semana`,
+        sub: `${INT(ap.leads)} → ${INT(ac.leads)} leads · ${cmpSub}` });
+      else if(drop >= NEWS.CPL_DROP) items.push({ score: drop*100 + 15, slug:'_acc',
+        big: '−' + pctTxt(drop), unit:'custo por lead',
+        title: `Custo por lead geral caiu ${pctTxt(drop)} na semana`,
+        sub: `${BRL(ap.spend/ap.leads)} → ${BRL(ac.spend/ac.leads)} · ${cmpSub}` });
+    }
+
+    // Melhor dia do mês (conta inteira, dias completos)
+    const mFrom = monthStartLocal(), yesterday = dayIso(1);
+    if(yesterday >= mFrom){
+      const byDay = {};
+      OVERVIEW.forEach(p => dailyInRange(p.slug, mFrom, yesterday).forEach(r => { byDay[r.d] = (byDay[r.d]||0) + (r.leads||0); }));
+      const days = Object.keys(byDay).sort();
+      if(days.length >= 7){
+        let top = days[0]; days.forEach(d => { if(byDay[d] > byDay[top]) top = d; });
+        const ties = days.filter(d => byDay[d] === byDay[top]).length;
+        if(ties === 1 && top >= curFrom && byDay[top] >= NEWS.MIN_LEADS) items.push({ score: 30, slug:'_day',
+          big: INT(byDay[top]), unit:'leads em 1 dia',
+          title: `${fmtDatePt(top).slice(0,5)} foi o melhor dia do mês em leads`,
+          sub: `recorde do mês até agora · leads de formulário do Meta` });
+      }
+    }
+
+    items.sort((a,b)=>b.score-a.score);
+    const out = items.slice(0, NEWS.MAX);
+
+    // Completa com o menor CPL da semana, só se já houver notícia de verdade
+    if(out.length && out.length < NEWS.MAX){
+      const used = new Set(out.map(n=>n.slug));
+      const cands = PRODUCTS.map(p=>({p, t:sumTotals([p.slug], curFrom, curTo)}))
+        .filter(x => x.t.leads >= NEWS.MIN_LEADS && !used.has(x.p.slug))
+        .sort((a,b)=> a.t.spend/a.t.leads - b.t.spend/b.t.leads);
+      const accCpl = ac.leads ? ac.spend/ac.leads : Infinity;
+      if(cands.length && cands[0].t.spend/cands[0].t.leads < accCpl) out.push({ slug:cands[0].p.slug,
+        big: BRL(cands[0].t.spend/cands[0].t.leads), unit:'custo por lead',
+        title: `${cands[0].p.label}: menor custo por lead da semana`,
+        sub: `${INT(cands[0].t.leads)} leads nos últimos 7 dias` });
+    }
+    return out;
+  }
+
+  function renderNews(){
+    const box = document.getElementById('newsBox'), track = document.getElementById('newsTrack'), dots = document.getElementById('newsDots');
+    clearInterval(newsTimer);
+    const news = buildNews();
+    if(!news.length){ box.hidden = true; return; }
+    box.hidden = false;
+    box.classList.toggle('multi', news.length > 1);
+    const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    track.innerHTML = news.map((n,i)=>`
+      <div class="news-slide" role="group" aria-label="${i+1} de ${news.length}">
+        <div class="news-fig"><div class="big num">${esc(n.big)}</div><div class="unit">${esc(n.unit)}</div></div>
+        <div>
+          <div class="news-kicker"><span class="dot"></span>Destaque da semana</div>
+          <div class="news-title">${esc(n.title)}</div>
+          <div class="news-sub">${esc(n.sub)}</div>
+        </div>
+      </div>`).join('');
+    dots.innerHTML = news.length > 1 ? news.map((_,i)=>`<button type="button" aria-label="Destaque ${i+1}"></button>`).join('') : '';
+    const go = i => {
+      newsIdx = (i + news.length) % news.length;
+      track.style.transform = `translateX(-${newsIdx*100}%)`;
+      [...dots.children].forEach((b,j)=>b.classList.toggle('on', j===newsIdx));
+    };
+    const start = () => { clearInterval(newsTimer); if(news.length > 1) newsTimer = setInterval(()=>go(newsIdx+1), NEWS.ROTATE_MS); };
+    [...dots.children].forEach((b,i)=>b.addEventListener('click', ()=>{ go(i); start(); }));
+    box.onmouseenter = () => clearInterval(newsTimer);
+    box.onmouseleave = start;
+    // Arrastar com o mouse ou o dedo: o painel acompanha e encaixa ao soltar
+    let x0 = null, dx = 0, dragging = false;
+    box.onpointerdown = e => {
+      if(news.length < 2 || e.target.closest('.news-dots')) return;
+      x0 = e.clientX; dx = 0; dragging = true;
+      clearInterval(newsTimer);
+      track.style.transition = 'none';
+      box.classList.add('dragging');
+      box.setPointerCapture(e.pointerId);
+    };
+    box.onpointermove = e => {
+      if(!dragging) return;
+      dx = e.clientX - x0;
+      // resistência nas pontas (primeiro e último slide)
+      if((newsIdx === 0 && dx > 0) || (newsIdx === news.length-1 && dx < 0)) dx *= 0.35;
+      track.style.transform = `translateX(calc(-${newsIdx*100}% + ${dx}px))`;
+    };
+    const endDrag = () => {
+      if(!dragging) return;
+      dragging = false;
+      track.style.transition = '';
+      box.classList.remove('dragging');
+      const limit = Math.min(80, box.clientWidth * 0.15);
+      const alvo = Math.abs(dx) > limit ? newsIdx + (dx < 0 ? 1 : -1) : newsIdx;
+      go(Math.max(0, Math.min(news.length-1, alvo)));
+      if(!box.matches(':hover')) start();
+    };
+    box.onpointerup = endDrag;
+    box.onpointercancel = endDrag;
+    go(Math.min(newsIdx, news.length-1));
+    start();
+  }
+
   function refreshAll(){
     const today = todayLocal();
     const allSlugs = PRODUCTS.map(p=>p.slug);
@@ -1105,6 +1292,7 @@
     document.getElementById('verbasPeriod').textContent = 'saldo corrido — não reseta sozinho, só com novo aporte do cliente';
 
     refreshResumo();
+    renderNews();
 
     const d = new Date(BUILD_TIME);
     els.updatedAt.textContent = 'dados atualizados às ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) + ' de ' + d.toLocaleDateString('pt-BR');

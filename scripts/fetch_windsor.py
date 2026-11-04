@@ -16,6 +16,8 @@ Formato de saída (lido pelo index.html):
 }
 O index.html liga cada produto (PRODUCTS) à sua campanha pelo nome exato.
 """
+import glob
+import hashlib
 import json
 import os
 import sys
@@ -32,6 +34,8 @@ LEAD_FIELD = "actions_onsite_conversion_lead_grouped"
 START_DATE = "2026-01-01"       # início do acompanhamento de verba
 TZ = timezone(timedelta(hours=-3))  # America/Sao_Paulo
 OUT = os.path.join(os.path.dirname(__file__), "..", "metrics.json")
+ADS_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "ads")
+TOP_ADS_PER_CAMPAIGN = 6  # anúncios guardados por campanha (o painel mostra os 6 melhores do filtro)
 
 
 class WindsorError(Exception):
@@ -68,6 +72,34 @@ def n(v):
         return 0.0
 
 
+def save_thumb(url, key):
+    """Baixa a miniatura do anúncio para assets/ads (o link do Meta expira em poucos dias)."""
+    if not url:
+        return None
+    name = hashlib.sha1(key.encode("utf-8")).hexdigest()[:16]
+    existing = glob.glob(os.path.join(ADS_DIR, name + ".*"))
+    if existing:
+        return "assets/ads/" + os.path.basename(existing[0])
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (painel)"})
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            ctype = (resp.headers.get("Content-Type") or "").split(";")[0].strip()
+            data = resp.read()
+    except Exception as e:
+        print(f"::warning::miniatura não baixada ({key}): {type(e).__name__}")
+        return None
+    ext = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/avif": "avif",
+           "image/gif": "gif"}.get(ctype)
+    if not ext:
+        path = urllib.parse.urlparse(url).path.lower()
+        ext = next((e for e in ("jpg", "jpeg", "png", "webp", "avif", "gif") if path.endswith("." + e)), "jpg")
+    os.makedirs(ADS_DIR, exist_ok=True)
+    fn = f"{name}.{ext}"
+    with open(os.path.join(ADS_DIR, fn), "wb") as f:
+        f.write(data)
+    return "assets/ads/" + fn
+
+
 def main() -> int:
     api_key = (os.environ.get("WINDSOR_API_KEY") or "").strip()
     if not api_key:
@@ -102,6 +134,10 @@ def main() -> int:
                 windsor(api_key, ["campaign", "gender", "age", LEAD_FIELD], frm, to),
                 windsor(api_key, ["campaign", "publisher_platform", "device_platform", LEAD_FIELD], frm, to),
             )
+        # anúncios dos últimos 7 dias (mesmo período do "Últimos 7 dias" do Meta)
+        ad_rows = windsor(api_key, ["campaign", "ad_id", "ad_name", "thumbnail_url",
+                                    "ad_preview_shareable_link", "spend", LEAD_FIELD],
+                          last7_from, last7_to)
     except WindsorError as e:
         print(f"::error::ERRO Windsor {e}")
         return 1
@@ -158,11 +194,48 @@ def main() -> int:
             if c in campaigns:
                 campaigns[c]["breakdown"][key] = {dim: dict(v) for dim, v in dims.items()}
 
+    # ---- anúncios que mais trouxeram leads, por campanha (mesmo anúncio em vários conjuntos = somado) ----
+    ads = {}
+    for r in ad_rows:
+        c, name = r.get("campaign"), r.get("ad_name")
+        if not c or not name:
+            continue
+        a = ads.setdefault((c, name), {"campaign": c, "name": name, "leads": 0, "spend": 0.0,
+                                       "_best": -1, "link": None, "_thumb": None, "_id": None})
+        sp, ld = n(r.get("spend")), int(n(r.get(LEAD_FIELD)))
+        a["leads"] += ld
+        a["spend"] += sp
+        if sp > a["_best"]:  # link e miniatura do conjunto que mais gastou
+            a["_best"] = sp
+            a["link"] = r.get("ad_preview_shareable_link") or a["link"]
+            a["_thumb"] = r.get("thumbnail_url") or a["_thumb"]
+            a["_id"] = r.get("ad_id")
+    by_camp = defaultdict(list)
+    for a in ads.values():
+        if a["leads"] > 0:
+            by_camp[a["campaign"]].append(a)
+    top_ads, keep_files = {}, set()
+    for c, lst in by_camp.items():
+        lst.sort(key=lambda a: (-a["leads"], a["spend"]))
+        top_ads[c] = []
+        for a in lst[:TOP_ADS_PER_CAMPAIGN]:
+            thumb = save_thumb(a["_thumb"], a["_id"] or (a["campaign"] + a["name"]))
+            if thumb:
+                keep_files.add(os.path.basename(thumb))
+            top_ads[c].append({"name": a["name"], "leads": a["leads"], "spend": round(a["spend"], 2),
+                               "link": a["link"], "thumb": thumb})
+    # apaga miniaturas que saíram do ranking
+    for f in glob.glob(os.path.join(ADS_DIR, "*")):
+        if os.path.basename(f) not in keep_files and not f.endswith(".gitkeep"):
+            os.remove(f)
+
     out = {
         "updatedAt": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "account": "Lopes ABC",
         "campaigns": campaigns,
         "reach": reach,
+        "adsPeriod": [last7_from, last7_to],
+        "topAds": top_ads,
     }
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, separators=(",", ":"))

@@ -136,7 +136,7 @@ def main() -> int:
             )
         # anúncios dos últimos 7 dias (mesmo período do "Últimos 7 dias" do Meta)
         ad_rows = windsor(api_key, ["campaign", "ad_id", "ad_name", "thumbnail_url",
-                                    "ad_preview_shareable_link", "spend", LEAD_FIELD],
+                                    "ad_preview_shareable_link", "instagram_permalink_url", "spend", LEAD_FIELD],
                           last7_from, last7_to)
     except WindsorError as e:
         print(f"::error::ERRO Windsor {e}")
@@ -201,13 +201,14 @@ def main() -> int:
         if not c or not name:
             continue
         a = ads.setdefault((c, name), {"campaign": c, "name": name, "leads": 0, "spend": 0.0,
-                                       "_best": -1, "link": None, "_thumb": None, "_id": None})
+                                       "_best": -1, "link": None, "ig": None, "_thumb": None, "_id": None})
         sp, ld = n(r.get("spend")), int(n(r.get(LEAD_FIELD)))
         a["leads"] += ld
         a["spend"] += sp
         if sp > a["_best"]:  # link e miniatura do conjunto que mais gastou
             a["_best"] = sp
             a["link"] = r.get("ad_preview_shareable_link") or a["link"]
+            a["ig"] = r.get("instagram_permalink_url") or a["ig"]  # post do Instagram: o painel toca o vídeo
             a["_thumb"] = r.get("thumbnail_url") or a["_thumb"]
             a["_id"] = r.get("ad_id")
     by_camp = defaultdict(list)
@@ -223,7 +224,7 @@ def main() -> int:
             if thumb:
                 keep_files.add(os.path.basename(thumb))
             top_ads[c].append({"name": a["name"], "leads": a["leads"], "spend": round(a["spend"], 2),
-                               "link": a["link"], "thumb": thumb})
+                               "link": a["link"], "ig": a["ig"], "thumb": thumb})
     # apaga miniaturas que saíram do ranking
     for f in glob.glob(os.path.join(ADS_DIR, "*")):
         if os.path.basename(f) not in keep_files and not f.endswith(".gitkeep"):

@@ -32,6 +32,11 @@ ACCOUNT_ID = "854204220059560"  # Lopes ABC (Meta Ads)
 # dentro do Facebook/Instagram). NÃO inclui leads do pixel do site, para bater com o Meta.
 LEAD_FIELD = "actions_onsite_conversion_lead_grouped"
 START_DATE = "2026-01-01"       # início do acompanhamento de verba
+# Black November: conta tudo que roda em campanha OU conjunto com "black" no nome
+# (ex.: conjunto "[BLACK NOVEMBER] Interesse"). Verba separada da verba regular.
+BN_FROM = "2026-11-01"
+BN_TO = "2026-11-30"
+BN_MARK = "black"
 TZ = timezone(timedelta(hours=-3))  # America/Sao_Paulo
 OUT = os.path.join(os.path.dirname(__file__), "..", "metrics.json")
 ADS_DIR = os.path.join(os.path.dirname(__file__), "..", "assets", "ads")
@@ -138,6 +143,9 @@ def main() -> int:
         ad_rows = windsor(api_key, ["campaign", "ad_id", "ad_name", "thumbnail_url",
                                     "ad_preview_shareable_link", "instagram_permalink_url", "spend", LEAD_FIELD],
                           last7_from, last7_to)
+        # gasto por conjunto desde o início da Black November (para separar a verba da promoção)
+        bn_rows = windsor(api_key, ["date", "campaign", "adset_name", "spend", LEAD_FIELD],
+                          BN_FROM, min(today_s, BN_TO))
     except WindsorError as e:
         print(f"::error::ERRO Windsor {e}")
         return 1
@@ -230,6 +238,18 @@ def main() -> int:
         if os.path.basename(f) not in keep_files and not f.endswith(".gitkeep"):
             os.remove(f)
 
+    # ---- Black November: só linhas de campanha/conjunto marcados ----
+    bn = {}
+    for r in bn_rows:
+        c, a, d = r.get("campaign") or "", r.get("adset_name") or "", r.get("date")
+        if not d or BN_MARK not in (c + " " + a).lower():
+            continue
+        x = bn.setdefault((d, c, a), {"d": d, "c": c, "a": a, "spend": 0.0, "leads": 0})
+        x["spend"] += n(r.get("spend"))
+        x["leads"] += int(n(r.get(LEAD_FIELD)))
+    black_november = {"from": BN_FROM, "to": BN_TO,
+                      "rows": [dict(v, spend=round(v["spend"], 2)) for v in sorted(bn.values(), key=lambda v: (v["d"], v["c"], v["a"]))]}
+
     out = {
         "updatedAt": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "account": "Lopes ABC",
@@ -237,6 +257,7 @@ def main() -> int:
         "reach": reach,
         "adsPeriod": [last7_from, last7_to],
         "topAds": top_ads,
+        "blackNovember": black_november,
     }
     with open(OUT, "w", encoding="utf-8") as f:
         json.dump(out, f, ensure_ascii=False, separators=(",", ":"))

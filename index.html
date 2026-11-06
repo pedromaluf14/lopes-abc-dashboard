@@ -1758,6 +1758,15 @@
     REACH = raw.reach || {};
     TOP_ADS = raw.topAds || {};
     BN = raw.blackNovember || BN;
+    // Linhas Black November: campanhas inteiras de promoção vêm da série diária por campanha
+    // (mais completa); conjuntos "(BLACK NOVEMBER)" dentro de campanhas regulares vêm da série por conjunto.
+    const bnRows = [];
+    Object.entries(all).forEach(([c, doc]) => {
+      if(!isBNCampaign(c)) return;
+      (doc.daily || []).forEach(r => { if(r.d >= BN.from && r.d <= BN.to) bnRows.push({ d:r.d, c, a:'', spend:r.spend||0, leads:r.leads||0 }); });
+    });
+    (BN.rows || []).forEach(r => { if(!isBNCampaign(r.c) && /black/i.test(r.a || '')) bnRows.push(r); });
+    BN = Object.assign({}, BN, { rows: bnRows });
     ADS_PERIOD = raw.adsPeriod || null;
     populateProductSelect();
     BUILD_TIME = raw.updatedAt;

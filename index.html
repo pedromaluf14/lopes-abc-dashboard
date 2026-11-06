@@ -259,6 +259,7 @@
     box-shadow:inset 0 -3px 0 var(--accent); }
   .bn-period{ font-size:13px; font-weight:600; color:var(--ink-soft); }
   #bnBody tr.bn-wait td{ color:var(--muted); }
+  tbody tr.bn-sec-row td{ padding:16px 10px 8px; border-bottom:1px solid var(--border); background:var(--surface); }
 
   /* ===== Imprimir relatório ===== */
   .print-wrap{ position:relative; margin-left:auto; }
@@ -1267,9 +1268,15 @@
     tbody.innerHTML = '';
     const tot = {leads:0, spend:0}, totPrev = {leads:0, spend:0};
     const cplFmt = v => BRL(v);
+    // soma das linhas Black November (gasto e leads) que passam no filtro, no período
+    const bnTot = (fn, from, to) => BN.rows.filter(r => fn(r) && r.d >= from && r.d <= to)
+      .reduce((a,r) => (a.spend += r.spend||0, a.leads += r.leads||0, a), {spend:0, leads:0});
+    const minus = (x, y) => ({ spend: Math.max(0,(x.spend||0)-y.spend), leads: Math.max(0,(x.leads||0)-y.leads) });
     PRODUCTS.forEach(p=>{
-      const row = curMap[p.campaign] || {leads:0, spend:0};
-      const prev = prevMap[p.campaign] || {leads:0, spend:0};
+      // produto regular: tira o que rodou em conjuntos de Black November (ex.: Ilha Murano)
+      const cs = prodCampaigns(p.slug), inP = r => cs.includes(r.c);
+      const row = minus(curMap[p.campaign] || {leads:0, spend:0}, bnTot(inP, dateFrom, dateTo));
+      const prev = minus(prevMap[p.campaign] || {leads:0, spend:0}, bnTot(inP, prevFrom, prevTo));
       tot.leads += row.leads; tot.spend += row.spend; totPrev.leads += prev.leads; totPrev.spend += prev.spend;
       const cpl = row.leads>0 ? row.spend/row.leads : 0;
       const cplPrev = prev.leads>0 ? prev.spend/prev.leads : 0;
@@ -1282,6 +1289,28 @@
         <td class="num-col num"><span class="cell-v">${BRL(row.spend)}</span>${deltaHtml(row.spend, prev.spend, 'none', BRL)}</td>`;
       tbody.appendChild(tr);
     });
+    // ---- Black November: cada produto da promoção, só com o gasto/leads da promoção ----
+    const sec = document.createElement('tr');
+    sec.className = 'bn-sec-row'; sec.dataset.name = 'black november';
+    sec.innerHTML = `<td colspan="4"><span class="bn-tag">BLACK NOVEMBER</span></td>`;
+    tbody.appendChild(sec);
+    BN_PRODUCTS.forEach(p=>{
+      const isP = r => bnProductOf(r.c) === p;
+      const row = bnTot(isP, dateFrom, dateTo), prev = bnTot(isP, prevFrom, prevTo);
+      const started = BN.rows.some(r => isP(r) && (r.spend||0) > 0);
+      tot.leads += row.leads; tot.spend += row.spend; totPrev.leads += prev.leads; totPrev.spend += prev.spend;
+      const cpl = row.leads>0 ? row.spend/row.leads : 0;
+      const cplPrev = prev.leads>0 ? prev.spend/prev.leads : 0;
+      const tr = document.createElement('tr');
+      tr.dataset.name = (p.label + ' black november').toLowerCase();
+      tr.innerHTML = `
+        <td class="name">${p.label}${started ? '' : ' <span class="pill neutral-pill">aguardando</span>'}</td>
+        <td class="num-col num"><span class="cell-v">${INT(row.leads)}</span>${started ? deltaHtml(row.leads, prev.leads, 'up', INT) : ''}</td>
+        <td class="num-col num"><span class="cell-v">${row.leads>0 ? BRL(cpl) : '—'}</span>${row.leads>0 ? deltaHtml(cpl, cplPrev, 'down', cplFmt) : ''}</td>
+        <td class="num-col num"><span class="cell-v">${BRL(row.spend)}</span>${started ? deltaHtml(row.spend, prev.spend, 'none', BRL) : ''}</td>`;
+      tbody.appendChild(tr);
+    });
+
     const tcpl = tot.leads>0 ? tot.spend/tot.leads : 0, tcplPrev = totPrev.leads>0 ? totPrev.spend/totPrev.leads : 0;
     const tr = document.createElement('tr');
     tr.className = 'total-row';

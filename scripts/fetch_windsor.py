@@ -32,8 +32,8 @@ ACCOUNT_ID = "854204220059560"  # Lopes ABC (Meta Ads)
 # dentro do Facebook/Instagram). NÃO inclui leads do pixel do site, para bater com o Meta.
 LEAD_FIELD = "actions_onsite_conversion_lead_grouped"
 START_DATE = "2026-01-01"       # início do acompanhamento de verba
-# Black November: conta tudo que roda em campanha OU conjunto com "black" no nome
-# (ex.: conjunto "[BLACK NOVEMBER] Interesse"). Verba separada da verba regular.
+# Black November: gasto por conjunto desde BN_FROM. A página (index.html, BN_PRODUCTS)
+# decide o que é Black November: "black" ou "BN" no nome, ou campanha de produto exclusivo da promoção.
 BN_FROM = "2026-11-01"
 BN_TO = "2026-11-30"
 BN_MARK = "black"
@@ -242,8 +242,8 @@ def main() -> int:
     bn = {}
     for r in bn_rows:
         c, a, d = r.get("campaign") or "", r.get("adset_name") or "", r.get("date")
-        if not d or BN_MARK not in (c + " " + a).lower():
-            continue
+        if not d:
+            continue  # guarda todos os conjuntos do período; a página decide o que é Black November
         x = bn.setdefault((d, c, a), {"d": d, "c": c, "a": a, "spend": 0.0, "leads": 0})
         x["spend"] += n(r.get("spend"))
         x["leads"] += int(n(r.get(LEAD_FIELD)))

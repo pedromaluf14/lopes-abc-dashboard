@@ -669,7 +669,7 @@
         <span class="bn-tag">BLACK NOVEMBER</span>
         <span class="bn-period">Verba da promoção · <span id="bnPeriod">01/11/2026 a 30/11/2026</span></span>
       </div>
-      <div class="panel-sub" style="margin:10px 0 10px">Verba separada da verba regular. Investido = tudo que rodou em campanha ou conjunto com <b>“Black”</b> no nome, no produto correspondente · esse gasto <b>não</b> entra na verba regular do produto (ex.: Ilha de Murano) · Progresso = quanto da verba da promoção já foi gasto, comparado com o tempo até 30/11 (contado do 1º dia de veiculação) · “aguardando” = ainda sem veiculação de Black November</div>
+      <div class="panel-sub" style="margin:10px 0 10px">Verba separada da verba regular. Investido = campanhas dos produtos novos da promoção, campanhas com <b>“BN”</b> no nome e conjuntos com <b>“Black November”</b> no nome · esse gasto <b>não</b> entra na verba regular do produto (ex.: Ilha de Murano) · Progresso = quanto da verba da promoção já foi gasto, comparado com o tempo até 30/11 (contado do 1º dia de veiculação) · “aguardando” = ainda sem veiculação de Black November</div>
       <div style="overflow-x:auto;">
         <table>
           <thead>
@@ -778,22 +778,24 @@
   const PRETTY_NAMES = { 'Now': 'Now Campestre' };
 
   // ===== BLACK NOVEMBER =====
-  // Verba própria da promoção, separada da verba regular. Conta o gasto de toda campanha
-  // ou conjunto com "black" no nome (ex.: conjunto "[BLACK NOVEMBER] Interesse"), ligado
-  // ao produto pelo nome da campanha (keys = trecho do nome, sem acento/espaço).
+  // Verba própria da promoção, separada da verba regular. Um gasto é Black November quando:
+  //   1) a campanha ou o conjunto tem "black" no nome (ex.: conjunto "(BLACK NOVEMBER)" no Ilha de Murano), ou
+  //   2) a campanha tem o marcador "BN" (ex.: FB-STO-INC-BN-LUZIAC_Forma…), ou
+  //   3) é campanha de um produto exclusivo da promoção (exclusive:true) — todo o gasto dele desde 01/11.
+  // keys = trecho do nome da campanha, sem acento/espaço, que liga o gasto ao produto.
   const BN_PRODUCTS = [
-    { label:'Tekoa',              budget:1740.00, keys:['tekoa'] },
-    { label:'Forma',              budget:1740.00, keys:['forma'] },
-    { label:'Fontello',           budget:2175.00, keys:['fontello'] },
-    { label:'Le Rêve',            budget:1740.00, keys:['lereve'] },
-    { label:'New Way',            budget:1740.00, keys:['newway'] },
-    { label:'Motiró Casa Branca', budget:1159.71, keys:['motirocasabranca'] },
-    { label:'Jump Assunção',      budget:1159.71, keys:['jumpassuncao'] },
-    { label:'Motiró Barcelona',   budget:1159.71, keys:['motirobarcelona'] },
-    { label:'Wine',               budget:1740.00, keys:['wine'] },
-    { label:'Home Park Jardim',   budget:1740.00, keys:['homeparkjardim'] },
-    { label:'Ilha de Santorino',  budget:1740.00, keys:['ilhadesantorino','ilhasantorino'] },
-    { label:'Ilha de Murano',     budget:1740.00, keys:['ilhademurano','ilhamurano'] },
+    { label:'Tekoa',              budget:1740.00, keys:['tekoa'], exclusive:true },
+    { label:'Forma',              budget:1740.00, keys:['forma'] },                       // só a campanha "BN" (a antiga é regular)
+    { label:'Fontello',           budget:2175.00, keys:['fontello','fontelo'], exclusive:true },
+    { label:'Le Rêve',            budget:1740.00, keys:['lereve'], exclusive:true },
+    { label:'New Way',            budget:1740.00, keys:['newway'], exclusive:true },
+    { label:'Motiró Casa Branca', budget:1159.71, keys:['motirocasabranca'], exclusive:true },
+    { label:'Jump Assunção',      budget:1159.71, keys:['jumpassuncao','jump'], exclusive:true },
+    { label:'Motiró Barcelona',   budget:1159.71, keys:['motirobarcelona'], exclusive:true },
+    { label:'Wine',               budget:1740.00, keys:['wine'], exclusive:true },
+    { label:'Home Park Jardim',   budget:1740.00, keys:['homepark'], exclusive:true },
+    { label:'Ilha de Santorino',  budget:1740.00, keys:['ilhadesantorin','ilhasantorin'], exclusive:true },
+    { label:'Ilha de Murano',     budget:1740.00, keys:['ilhademurano','ilhamurano'] },   // só conjuntos "(BLACK NOVEMBER)"
   ];
   let BN = { from:'2026-11-01', to:'2026-11-30', rows:[] };
   const normKey = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
@@ -801,10 +803,18 @@
     const k = normKey(campaign);
     return BN_PRODUCTS.find(p => p.keys.some(x => k.includes(x))) || null;
   }
+  const hasBNMark = c => /(^|[-_\s])BN([-_\s]|$)/.test(c);
+  // a campanha inteira é Black November? (marcador no nome ou produto exclusivo da promoção)
+  function isBNCampaign(c){
+    if(/black/i.test(c) || hasBNMark(c)) return true;
+    const p = bnProductOf(c);
+    return !!(p && p.exclusive);
+  }
+  const isBNRow = r => isBNCampaign(r.c) || /black/i.test(r.a || '');
   // gasto Black November dentro das campanhas de um produto regular (para tirar da verba regular)
   function bnSpendInCampaigns(campaigns, fromIso, toIso){
     const set = new Set(campaigns);
-    return BN.rows.filter(r => set.has(r.c) && (!fromIso || r.d >= fromIso) && (!toIso || r.d <= toIso))
+    return BN.rows.filter(r => isBNRow(r) && set.has(r.c) && (!fromIso || r.d >= fromIso) && (!toIso || r.d <= toIso))
                   .reduce((s,r)=>s+(r.spend||0), 0);
   }
   const prodCampaigns = slug => { const p = PRODUCTS.find(x=>x.slug===slug); return p ? [p.campaign].concat(p.alsoCampaigns||[]) : []; };
@@ -1383,7 +1393,7 @@
     const today = todayLocal();
     const acc = new Map(BN_PRODUCTS.map(p => [p, {spend:0, today:0, leads:0, first:null}]));
     const other = {spend:0, today:0, leads:0, first:null, names:new Set()};
-    BN.rows.forEach(r => {
+    BN.rows.filter(isBNRow).forEach(r => {
       const p = bnProductOf(r.c);
       const a = p ? acc.get(p) : other;
       if(!p) other.names.add(prettyCampaignName(r.c));
@@ -1741,7 +1751,7 @@
     const extras = Object.keys(all).filter(c => !claimed.has(c)).sort().map((c, i) => {
       const slug = 'enc-' + i;
       metricsCache[slug] = all[c];
-      const bn = /black/i.test(c);
+      const bn = isBNCampaign(c);
       return { slug, label: prettyCampaignName(c) + (bn ? ' (Black November)' : ''), campaign: c, encerrada: true, bn };
     });
     OVERVIEW = PRODUCTS.concat(extras);

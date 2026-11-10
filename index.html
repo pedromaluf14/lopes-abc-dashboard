@@ -646,7 +646,7 @@
     <div class="print-title">Verbas</div>
     <div class="period"><span>&#128197;</span> <span id="verbasPeriod">Saldo corrido</span></div>
     <div class="panel">
-      <div class="panel-sub" style="margin-bottom:10px">Verba: soma de tudo que o cliente já enviou (atualizado pelo time via chat a cada novo aporte, nunca reseta sozinho) · Investido: acumulado desde 1º/jan/2026 (início do acompanhamento de verba), atualizado por hora · Gasto hoje: gasto do dia mais recente, somando os conjuntos do produto · Saldo: Verba − Investido · Válida até: data até quando a verba atual deve cobrir, conforme informado pelo cliente · Progresso: quanto da verba disponível no ciclo atual (do mês anterior até a data “Válida até”; o ciclo só vira quando a verba e a data forem atualizadas) já foi gasto — verde = dentro do ritmo até a data “Válida até”, amarelo/laranja = gastando mais rápido que o prazo, vermelho = verba estourada</div>
+      <div class="panel-sub" style="margin-bottom:10px">Verba: soma de tudo que o cliente já enviou (atualizado pelo time via chat a cada novo aporte, nunca reseta sozinho) · Investido: acumulado desde 1º/jan/2026 (início do acompanhamento de verba), atualizado por hora · Gasto hoje: gasto do dia mais recente, somando os conjuntos do produto · Saldo: Verba − Investido · Válida até: data até quando a verba atual deve cobrir, conforme informado pelo cliente · Progresso: quanto da verba disponível no ciclo atual (do mês anterior até a data “Válida até”; o ciclo só vira quando a verba e a data forem atualizadas) já foi gasto — verde = menos de 50% gasto, amarelo = de 50% a 79%, vermelho = 80% ou mais (ou verba estourada)</div>
       <div style="overflow-x:auto;">
         <table>
           <thead>
@@ -670,7 +670,7 @@
         <span class="bn-tag">BLACK NOVEMBER</span>
         <span class="bn-period">Verba da promoção · <span id="bnPeriod">01/11/2026 a 30/11/2026</span></span>
       </div>
-      <div class="panel-sub" style="margin:10px 0 10px">Verba separada da verba regular. Investido = campanhas dos produtos novos da promoção, campanhas com <b>“BN”</b> no nome e conjuntos com <b>“Black November”</b> no nome · esse gasto <b>não</b> entra na verba regular do produto (ex.: Ilha de Murano) · Progresso = quanto da verba da promoção já foi gasto, comparado com o tempo até 30/11 (contado do 1º dia de veiculação) · “aguardando” = ainda sem veiculação de Black November</div>
+      <div class="panel-sub" style="margin:10px 0 10px">Verba separada da verba regular. Investido = campanhas dos produtos novos da promoção, campanhas com <b>“BN”</b> no nome e conjuntos com <b>“Black November”</b> no nome · esse gasto <b>não</b> entra na verba regular do produto (ex.: Ilha de Murano) · Progresso = quanto da verba da promoção já foi gasto (verde < 50% · amarelo 50–79% · vermelho 80%+) · “aguardando” = ainda sem veiculação de Black November</div>
       <div style="overflow-x:auto;">
         <table>
           <thead>
@@ -1347,6 +1347,13 @@
     return { start, startIso: start.toLocaleDateString('sv-SE'), end: new Date(y, m-1, d, 23, 59, 59), endIso };
   }
 
+  // Cor do anel pela % da verba já gasta: verde < 50% · amarelo 50–79% · vermelho a partir de 80% (ou estourada)
+  function ringColor(pct, estourada){
+    if(estourada || pct >= 80) return 'var(--bad)';
+    if(pct >= 50) return 'var(--warn)';
+    return 'var(--good)';
+  }
+
   function cycleSpend(slug){
     const doc = metricsCache[slug];
     const from = productCycle(slug).startIso;
@@ -1386,15 +1393,7 @@
     ringLabel.textContent = usedPct + '%';
     tr.querySelector('.ring-wrap').title =
       `Ciclo ${fmtDatePt(cyc.startIso)} a ${cyc.endIso ? fmtDatePt(cyc.endIso) : '—'} · gasto no ciclo: ${BRL(spentCycle)} de ${BRL(Math.max(cycleBudget,0))} (${usedPct}%) · ${Math.round(timePct)}% do prazo já passou`;
-    if(remaining < 0){
-      ringFill.style.stroke = 'var(--bad)';              // verba estourada
-    } else if(usedPct > timePct + 10){
-      ringFill.style.stroke = 'var(--critical)';         // gastando bem mais rápido que o prazo
-    } else if(usedPct > timePct){
-      ringFill.style.stroke = 'var(--warn)';             // um pouco acima do ritmo
-    } else {
-      ringFill.style.stroke = 'var(--good)';             // dentro do ritmo
-    }
+    ringFill.style.stroke = ringColor(usedPct, remaining < 0);
   }
 
   function buildVerbasTable(){
@@ -1460,7 +1459,7 @@
       if(a.first){
         const start = new Date(a.first + 'T00:00:00');
         const timePct = Math.max(0, Math.min(100, 100*(Date.now()-start.getTime())/(end.getTime()-start.getTime())));
-        color = saldo < 0 ? 'var(--bad)' : pct > timePct + 10 ? 'var(--critical)' : pct > timePct ? 'var(--warn)' : 'var(--good)';
+        color = ringColor(pct, saldo < 0);
         title = `Gasto: ${BRL(a.spend)} de ${BRL(p.budget)} (${pct}%) · ${Math.round(timePct)}% do prazo até ${fmtDatePt(BN.to)} já passou (desde ${fmtDatePt(a.first)})`;
       }
       return `<tr${a.first ? '' : ' class="bn-wait"'}>

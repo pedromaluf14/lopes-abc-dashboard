@@ -646,7 +646,7 @@
     <div class="print-title">Verbas</div>
     <div class="period"><span>&#128197;</span> <span id="verbasPeriod">Saldo corrido</span></div>
     <div class="panel">
-      <div class="panel-sub" style="margin-bottom:10px">Verba: soma de tudo que o cliente já enviou (atualizado pelo time via chat a cada novo aporte, nunca reseta sozinho) · Investido: acumulado desde 1º/jan/2026 (início do acompanhamento de verba), atualizado por hora · Gasto hoje: gasto do dia mais recente, somando os conjuntos do produto · Saldo: Verba − Investido · Válida até: data até quando a verba atual deve cobrir, conforme informado pelo cliente · Progresso: quanto da verba disponível no ciclo atual (desde o dia 10) já foi gasto — verde = dentro do ritmo até a data “Válida até”, amarelo/laranja = gastando mais rápido que o prazo, vermelho = verba estourada</div>
+      <div class="panel-sub" style="margin-bottom:10px">Verba: soma de tudo que o cliente já enviou (atualizado pelo time via chat a cada novo aporte, nunca reseta sozinho) · Investido: acumulado desde 1º/jan/2026 (início do acompanhamento de verba), atualizado por hora · Gasto hoje: gasto do dia mais recente, somando os conjuntos do produto · Saldo: Verba − Investido · Válida até: data até quando a verba atual deve cobrir, conforme informado pelo cliente · Progresso: quanto da verba disponível no ciclo atual (do mês anterior até a data “Válida até”; o ciclo só vira quando a verba e a data forem atualizadas) já foi gasto — verde = dentro do ritmo até a data “Válida até”, amarelo/laranja = gastando mais rápido que o prazo, vermelho = verba estourada</div>
       <div style="overflow-x:auto;">
         <table>
           <thead>
@@ -1336,9 +1336,20 @@
   const RING_C = 2 * Math.PI * RING_R; // ~100.53
 
   // Gasto do produto desde o início do ciclo atual (dia 10 do mês).
+  // Ciclo da verba de cada produto: do mesmo dia do mês anterior até a data "Válida até"
+  // (ex.: válida até 10/11 → ciclo 10/10 a 10/11). O ciclo só vira quando a verba e a
+  // data "Válida até" forem atualizadas — no dia da renovação o anel não zera sozinho.
+  function productCycle(slug){
+    const endIso = VERBA_VALID_UNTIL[slug];
+    if(!endIso){ const s = cycleStart(); return { start: s, startIso: cycleStartISO(), end: new Date(s.getFullYear(), s.getMonth()+1, s.getDate(), 23, 59, 59), endIso: null }; }
+    const [y,m,d] = endIso.split('-').map(Number);
+    const start = new Date(y, m-2, d);   // mesmo dia, mês anterior
+    return { start, startIso: start.toLocaleDateString('sv-SE'), end: new Date(y, m-1, d, 23, 59, 59), endIso };
+  }
+
   function cycleSpend(slug){
     const doc = metricsCache[slug];
-    const from = cycleStartISO();
+    const from = productCycle(slug).startIso;
     const total = doc && doc.daily ? doc.daily.filter(r => r.d >= from).reduce((s,r)=>s+(r.spend||0), 0) : 0;
     return total - bnSpendInCampaigns(prodCampaigns(slug), from);   // Black November não entra no ciclo regular
   }
@@ -1355,11 +1366,16 @@
     const cycleBudget = remaining + spentCycle;
     const usedPct = cycleBudget > 0 ? Math.round(100*spentCycle/cycleBudget) : (remaining < 0 ? 100 : 0);
     const ringPct = Math.max(0, Math.min(100, usedPct));
-    // % do tempo do ciclo que já passou
-    const start = cycleStart();
-    const endIso = VERBA_VALID_UNTIL[slug];
-    const end = endIso ? new Date(endIso + 'T00:00:00') : new Date(start.getFullYear(), start.getMonth()+1, 10);
+    // % do tempo do ciclo que já passou (ciclo = mês que termina na data "Válida até")
+    const cyc = productCycle(slug), start = cyc.start, end = cyc.end;
     const timePct = Math.max(0, Math.min(100, 100*(Date.now() - start.getTime())/(end.getTime() - start.getTime())));
+    const vencida = cyc.endIso && Date.now() > end.getTime();
+    const validCell = tr.querySelector('.valid-cell');
+    if(validCell && cyc.endIso){
+      const today = todayLocal() === cyc.endIso;
+      validCell.innerHTML = fmtDatePt(cyc.endIso) + (vencida ? ' <span class="pill bad" title="Atualize a verba e a data Válida até">vencida</span>'
+        : today ? ' <span class="pill warn" title="Último dia do ciclo — atualize a verba e a data quando o cliente renovar">renova hoje</span>' : '');
+    }
     tr.querySelector('.spend-cell').textContent = BRL(totalSpend);
     tr.querySelector('.daily-cell').textContent = BRL(dailySpend);
     tr.querySelector('.remaining-cell').textContent = BRL(remaining);
@@ -1369,7 +1385,7 @@
     ringFill.style.strokeDashoffset = RING_C * (1 - ringPct/100);
     ringLabel.textContent = usedPct + '%';
     tr.querySelector('.ring-wrap').title =
-      `Gasto no ciclo: ${BRL(spentCycle)} de ${BRL(Math.max(cycleBudget,0))} (${usedPct}%) · ${Math.round(timePct)}% do prazo já passou`;
+      `Ciclo ${fmtDatePt(cyc.startIso)} a ${cyc.endIso ? fmtDatePt(cyc.endIso) : '—'} · gasto no ciclo: ${BRL(spentCycle)} de ${BRL(Math.max(cycleBudget,0))} (${usedPct}%) · ${Math.round(timePct)}% do prazo já passou`;
     if(remaining < 0){
       ringFill.style.stroke = 'var(--bad)';              // verba estourada
     } else if(usedPct > timePct + 10){
@@ -1395,7 +1411,7 @@
         <td class="num-col num spend-cell">—</td>
         <td class="num-col num daily-cell">—</td>
         <td class="num-col num remaining-cell">—</td>
-        <td class="num-col num">${validUntil ? fmtDatePt(validUntil) : '—'}</td>
+        <td class="num-col num valid-cell">${validUntil ? fmtDatePt(validUntil) : '—'}</td>
         <td><div class="ring-wrap">
           <svg width="40" height="40" viewBox="0 0 40 40">
             <circle class="ring-track" cx="20" cy="20" r="${RING_R}"></circle>

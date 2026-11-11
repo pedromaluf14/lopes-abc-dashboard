@@ -668,7 +668,7 @@
     <div class="panel bn-panel">
       <div class="bn-head">
         <span class="bn-tag">BLACK NOVEMBER</span>
-        <span class="bn-period">Verba da promoção · <span id="bnPeriod">01/11/2026 a 30/11/2026</span></span>
+        <span class="bn-period">Verba da promoção · <span id="bnPeriod">01/11/2026 a 15/12/2026</span></span>
       </div>
       <div class="panel-sub" style="margin:10px 0 10px">Verba separada da verba regular. Investido = campanhas dos produtos novos da promoção, campanhas com <b>“BN”</b> no nome e conjuntos com <b>“Black November”</b> no nome · esse gasto <b>não</b> entra na verba regular do produto (ex.: Ilha de Murano) · Progresso = quanto da verba da promoção já foi gasto (verde < 50% · amarelo 50–79% · vermelho 80%+) · “aguardando” = ainda sem veiculação de Black November</div>
       <div style="overflow-x:auto;">
@@ -785,20 +785,20 @@
   //   3) é campanha de um produto exclusivo da promoção (exclusive:true) — todo o gasto dele desde 01/11.
   // keys = trecho do nome da campanha, sem acento/espaço, que liga o gasto ao produto.
   const BN_PRODUCTS = [
-    { label:'Tekoa',              budget:1740.00, keys:['tekoa'], exclusive:true },
-    { label:'Forma',              budget:1740.00, keys:['forma'] },                       // só a campanha "BN" (a antiga é regular)
-    { label:'Fontello',           budget:2175.00, keys:['fontello','fontelo'], exclusive:true },
-    { label:'Le Rêve',            budget:1740.00, keys:['lereve'], exclusive:true },
-    { label:'New Way',            budget:1740.00, keys:['newway'], exclusive:true },
-    { label:'Motiró Casa Branca', budget:1159.71, keys:['motirocasabranca'], exclusive:true },
-    { label:'Jump Assunção',      budget:1159.71, keys:['jumpassuncao','jump'], exclusive:true },
-    { label:'Motiró Barcelona',   budget:1159.71, keys:['motirobarcelona'], exclusive:true },
-    { label:'Wine',               budget:1740.00, keys:['wine'], exclusive:true },
-    { label:'Home Park Jardim',   budget:1740.00, keys:['homepark'], exclusive:true },
-    { label:'Ilha de Santorino',  budget:1740.00, keys:['ilhadesantorin','ilhasantorin'], exclusive:true },
-    { label:'Ilha de Murano',     budget:1740.00, keys:['ilhademurano','ilhamurano'] },   // só conjuntos "(BLACK NOVEMBER)"
+    { label:'Tekoa',              budget:2175.00, keys:['tekoa'], exclusive:true },
+    { label:'Forma',              budget:2175.00, keys:['forma'] },                       // só a campanha "BN" (a antiga é regular)
+    { label:'Fontello',           budget:3045.00, keys:['fontello','fontelo'], exclusive:true },
+    { label:'Le Rêve',            budget:2175.00, keys:['lereve'], exclusive:true },
+    { label:'New Way',            budget:2175.00, keys:['newway'], exclusive:true },
+    { label:'Motiró Casa Branca', budget:1594.71, keys:['motirocasabranca'], exclusive:true },
+    { label:'Jump Assunção',      budget:1594.71, keys:['jumpassuncao','jump'], exclusive:true },
+    { label:'Motiró Barcelona',   budget:1594.71, keys:['motirobarcelona'], exclusive:true },
+    { label:'Wine',               budget:2175.00, keys:['wine'], exclusive:true },
+    { label:'Home Park Jardim',   budget:2175.00, keys:['homepark'], exclusive:true },
+    { label:'Ilha de Santorino',  budget:2175.00, keys:['ilhadesantorin','ilhasantorin'], exclusive:true },
+    { label:'Ilha de Murano',     budget:2175.00, keys:['ilhademurano','ilhamurano'] },   // só conjuntos "(BLACK NOVEMBER)"
   ];
-  let BN = { from:'2026-11-01', to:'2026-11-30', rows:[] };
+  let BN = { from:'2026-11-01', to:'2026-12-15', rows:[] };
   const normKey = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
   function bnProductOf(campaign){
     const k = normKey(campaign);

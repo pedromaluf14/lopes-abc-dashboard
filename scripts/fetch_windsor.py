@@ -35,7 +35,7 @@ START_DATE = "2026-01-01"       # início do acompanhamento de verba
 # Black November: gasto por conjunto desde BN_FROM. A página (index.html, BN_PRODUCTS)
 # decide o que é Black November: "black" ou "BN" no nome, ou campanha de produto exclusivo da promoção.
 BN_FROM = "2026-11-01"
-BN_TO = "2026-11-30"
+BN_TO = "2026-12-15"
 BN_MARK = "black"
 TZ = timezone(timedelta(hours=-3))  # America/Sao_Paulo
 OUT = os.path.join(os.path.dirname(__file__), "..", "metrics.json")

@@ -379,6 +379,27 @@
     border:1px solid var(--border); background:var(--surface-2); color:var(--ink); cursor:pointer;
   }
   .selectbox:focus{ outline:2px solid var(--accent-line); outline-offset:1px; }
+  /* seletor múltiplo de produtos (Visão geral) */
+  .ms{ position:relative; }
+  .ms-btn{ display:flex; align-items:center; justify-content:space-between; gap:10px; min-width:240px; max-width:340px; text-align:left; }
+  .ms-btn .ms-txt{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ms-btn .ms-count{ background:var(--accent); color:var(--accent-ink); border-radius:999px; font-size:11px; padding:1px 7px; margin-left:6px; }
+  .ms-btn svg{ width:14px; height:14px; flex:none; transition:transform .15s; }
+  .ms.open .ms-btn svg{ transform:rotate(180deg); }
+  .ms-panel{ display:none; position:absolute; z-index:60; top:calc(100% + 6px); left:0; width:300px; max-width:calc(100vw - 32px);
+    background:var(--surface); border:1px solid var(--border); border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.14); overflow:hidden; }
+  .ms.open .ms-panel{ display:block; }
+  .ms-list{ max-height:340px; overflow:auto; padding:6px; }
+  .ms-group{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); padding:10px 8px 4px; }
+  .ms-opt{ display:flex; align-items:center; gap:9px; padding:7px 8px; border-radius:8px; font-size:13px; cursor:pointer; color:var(--ink); }
+  .ms-opt:hover{ background:var(--surface-2); }
+  .filter-row .ms-opt input{ flex:none; accent-color:var(--accent); width:15px; height:15px; margin:0; padding:0; border:none; cursor:pointer; }
+  .ms-foot{ display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px 10px; border-top:1px solid var(--border); background:var(--surface-2); }
+  .ms-foot span{ font-size:12px; color:var(--muted); }
+  .ms-clear{ border:1px solid var(--accent-line); background:transparent; color:var(--accent); font-family:inherit; font-weight:600; font-size:12px; padding:6px 10px; border-radius:8px; cursor:pointer; }
+  .ms-clear:disabled{ opacity:.4; cursor:default; }
+  .ms-clear-out{ display:none; }
+  .ms-clear-out.show{ display:inline-block; }
   .period-btn-group{ display:flex; gap:6px; flex-wrap:wrap; background:var(--surface); border:1px solid var(--border); border-radius:11px; padding:4px; }
   .period-btn{
     border:none; background:transparent; color:var(--muted); font-family:inherit; font-weight:600;
@@ -503,7 +524,17 @@
   <div class="tab-panel active" data-panel="resumo">
     <div class="print-title">Visão geral</div>
     <div class="filter-row" style="gap:10px;">
-      <select id="resumoProduct" class="selectbox"></select>
+      <div class="ms" id="resumoProduct">
+        <button type="button" class="selectbox ms-btn" id="msBtn" aria-haspopup="listbox" aria-expanded="false">
+          <span class="ms-txt" id="msTxt">Todos os produtos</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div class="ms-panel" id="msPanel">
+          <div class="ms-list" id="msList" role="listbox" aria-multiselectable="true"></div>
+          <div class="ms-foot"><span id="msInfo">Nenhum selecionado = todos</span><button type="button" class="ms-clear" id="msClear">Limpar seleção</button></div>
+        </div>
+      </div>
+      <button type="button" class="ms-clear ms-clear-out" id="msClearOut" title="Voltar para todos os produtos">✕ Limpar seleção</button>
       <div class="period-btn-group" id="resumoPeriodBtns">
         <button type="button" class="period-btn" data-period="7d">Últimos 7 dias</button>
         <button type="button" class="period-btn active" data-period="month">Mês corrente</button>
@@ -885,15 +916,16 @@
     if(!toEl.value) toEl.value = today;
   }
 
+  // seleção múltipla de produtos: vazia = todos
+  const SELECTED = new Set();
   function selectedSlugs(){
-    const v = document.getElementById('resumoProduct').value;
-    if(!v) return OVERVIEW.map(p=>p.slug);
-    return [v];
+    if(!SELECTED.size) return OVERVIEW.map(p=>p.slug);
+    return OVERVIEW.filter(p=>SELECTED.has(p.slug)).map(p=>p.slug);
   }
   function selectedLabel(){
-    const v = document.getElementById('resumoProduct').value;
-    if(!v) return 'Todos os produtos';
-    return OVERVIEW.find(p=>p.slug===v).label;
+    if(!SELECTED.size) return 'Todos os produtos';
+    const labs = OVERVIEW.filter(p=>SELECTED.has(p.slug)).map(p=>p.label);
+    return labs.length <= 3 ? labs.join(', ') : `${labs.length} produtos`;
   }
 
   /* ---------------- cache aggregation (dados vêm do db, atualizados por hora) ---------------- */
@@ -955,17 +987,43 @@
   }
 
   function populateProductSelect(){
-    const sel = document.getElementById('resumoProduct');
-    const prev = sel.value;
     // encerradas: só as que gastaram nos últimos 60 dias (as antigas seguem somando em "Todos")
     const since = (()=>{ const d=new Date(); d.setDate(d.getDate()-60); return d.toLocaleDateString('sv-SE'); })();
     const ended = OVERVIEW.filter(p=>p.encerrada && sumTotals([p.slug], since, todayLocal()).spend > 0);
-    sel.innerHTML = '<option value="">Todos os produtos</option>' +
-      PRODUCTS.map(p=>`<option value="${p.slug}">${p.label}</option>`).join('') +
-      (ended.some(p=>p.bn) ? '<optgroup label="Black November">' + ended.filter(p=>p.bn).map(p=>`<option value="${p.slug}">${p.label}</option>`).join('') + '</optgroup>' : '') +
-      (ended.some(p=>!p.bn) ? '<optgroup label="Encerradas">' + ended.filter(p=>!p.bn).map(p=>`<option value="${p.slug}">${p.label}</option>`).join('') + '</optgroup>' : '');
-    if([...sel.options].some(o=>o.value===prev)) sel.value = prev;
+    const opt = p => `<label class="ms-opt"><input type="checkbox" value="${p.slug}"${SELECTED.has(p.slug)?' checked':''}><span>${p.label}</span></label>`;
+    document.getElementById('msList').innerHTML =
+      '<div class="ms-group">Ativos</div>' + PRODUCTS.map(opt).join('') +
+      (ended.some(p=>p.bn) ? '<div class="ms-group">Black November</div>' + ended.filter(p=>p.bn).map(opt).join('') : '') +
+      (ended.some(p=>!p.bn) ? '<div class="ms-group">Encerradas</div>' + ended.filter(p=>!p.bn).map(opt).join('') : '');
+    // tira da seleção o que não está mais na lista
+    const avail = new Set([...PRODUCTS, ...ended].map(p=>p.slug));
+    [...SELECTED].forEach(s=>{ if(!avail.has(s)) SELECTED.delete(s); });
+    syncProductUI();
   }
+  function syncProductUI(){
+    const n = SELECTED.size;
+    document.getElementById('msTxt').innerHTML = n ? `${selectedLabel()}<span class="ms-count">${n}</span>` : 'Todos os produtos';
+    document.getElementById('msInfo').textContent = n ? `${n} selecionado${n>1?'s':''}` : 'Nenhum selecionado = todos';
+    document.getElementById('msClear').disabled = !n;
+    document.getElementById('msClearOut').classList.toggle('show', n > 0);
+    document.querySelectorAll('#msList input').forEach(i=>{ i.checked = SELECTED.has(i.value); });
+  }
+  (function(){
+    const box = document.getElementById('resumoProduct'), btn = document.getElementById('msBtn');
+    const toggle = open => { box.classList.toggle('open', open); btn.setAttribute('aria-expanded', open?'true':'false'); };
+    btn.addEventListener('click', e => { e.stopPropagation(); toggle(!box.classList.contains('open')); });
+    document.getElementById('msPanel').addEventListener('click', e => e.stopPropagation());
+    document.addEventListener('click', () => toggle(false));
+    document.addEventListener('keydown', e => { if(e.key === 'Escape') toggle(false); });
+    document.getElementById('msList').addEventListener('change', e => {
+      const i = e.target; if(!i.matches('input[type=checkbox]')) return;
+      i.checked ? SELECTED.add(i.value) : SELECTED.delete(i.value);
+      syncProductUI(); refreshResumo();
+    });
+    const clear = () => { SELECTED.clear(); syncProductUI(); refreshResumo(); };
+    document.getElementById('msClear').addEventListener('click', clear);
+    document.getElementById('msClearOut').addEventListener('click', clear);
+  })();
 
   const els = {
     refreshBtn: document.getElementById('refreshBtn'),
@@ -1222,7 +1280,7 @@
     tbody.innerHTML = '';
     // ativos sempre aparecem; encerrados só se tiveram gasto ou lead no período
     const list = (campaignFilter
-      ? OVERVIEW.filter(p=>p.campaign===campaignFilter)
+      ? OVERVIEW.filter(p=>campaignFilter.includes(p.campaign))
       : OVERVIEW).filter(p=>!p.encerrada || ((rowsMap[p.campaign]||{}).spend>0 || (rowsMap[p.campaign]||{}).leads>0));
     const maxLeads = Math.max(...list.map(p=>(rowsMap[p.campaign]||{}).leads||0), 1);
     list.forEach(p=>{
@@ -1492,7 +1550,7 @@
     const panel = document.getElementById('adsPanel'), grid = document.getElementById('adsGrid');
     if(!panel) return;
     const escA = t => String(t==null?'':t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-    const all = slugs.length === OVERVIEW.length;
+    const all = !SELECTED.size;
     const prods = all ? OVERVIEW : OVERVIEW.filter(p => slugs.includes(p.slug));
     const merged = {};
     prods.forEach(p => {
@@ -1532,24 +1590,24 @@
   function refreshResumo(){
     // Destaques da semana falam da conta toda: some quando um produto específico está filtrado
     const nb = document.getElementById('newsBox');
-    if(nb) nb.classList.toggle('off', !!document.getElementById('resumoProduct').value);
+    if(nb) nb.classList.toggle('off', SELECTED.size > 0);
     const preset = getActivePeriod();
     const { from, to, label } = periodRange(preset);
     const slugs = selectedSlugs();
     const prodLabel = selectedLabel();
-    const fullLabel = slugs.length===OVERVIEW.length ? label : `${label} · ${prodLabel}`;
+    const fullLabel = !SELECTED.size ? label : `${label} · ${prodLabel}`;
 
     const totals = computeTotals(slugs, from, to);
     const daily = dailySeriesFor(slugs, from, to);
     const byCampaign = byCampaignTotals(OVERVIEW.map(p=>p.slug), from, to);
-    const filterCampaign = slugs.length===1 ? OVERVIEW.find(p=>p.slug===slugs[0]).campaign : null;
+    const filterCampaign = SELECTED.size ? OVERVIEW.filter(p=>SELECTED.has(p.slug)).map(p=>p.campaign) : null;
 
     // Alcance: valor consolidado do Meta (só existe para "Últimos 7 dias" e "Mês corrente")
     let reachValue = null;
     const rk = preset==='7d' ? 'last7' : (preset==='month' ? 'month' : null);
     if(rk && REACH[rk]){
-      if(slugs.length===OVERVIEW.length) reachValue = REACH[rk].account;
-      else {
+      if(!SELECTED.size) reachValue = REACH[rk].account;
+      else if(slugs.length===1){   // vários produtos: o Meta não soma alcance (mesma pessoa conta 1 vez)
         const p = OVERVIEW.find(pp=>pp.slug===slugs[0]);
         const cs = [p.campaign].concat(p.alsoCampaigns || []).filter(c => REACH[rk].campaigns[c] != null);
         if(cs.length===1) reachValue = REACH[rk].campaigns[cs[0]];
@@ -1753,7 +1811,6 @@
       : (BUILD_TIME !== before ? 'dados novos carregados' : 'já está com os dados mais recentes (conferido às ' + agora + ')');
     els.updatedAt.textContent += ' · ' + msg;
   });
-  document.getElementById('resumoProduct').addEventListener('change', refreshResumo);
   document.querySelectorAll('#resumoPeriodBtns .period-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       document.querySelectorAll('#resumoPeriodBtns .period-btn').forEach(b=>b.classList.remove('active'));

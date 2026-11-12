@@ -702,14 +702,14 @@
 <script>
 (function(){
   const PRODUCTS = [
-    { slug:'start-joy',             label:'Start Joy',              campaign:'FB-STO-INC-LUZIAC_StartJoy-SBC_emp_000242_prod_REM23332',         seedTotal:18688 },
-    { slug:'landscape',             label:'Landscape',              campaign:'FB-STO-INC-LUZIAC_Landscape-STA_emp_000242_prod_REM24165',        seedTotal:27319 },
+    { slug:'start-joy',             label:'Start Joy',              campaign:'FB-STO-INC-LUZIAC_StartJoy-SBC_emp_000242_prod_REM23332',         seedTotal:20428 },
+    { slug:'landscape',             label:'Landscape',              campaign:'FB-STO-INC-LUZIAC_Landscape-STA_emp_000242_prod_REM24165',        seedTotal:29494 },
     { slug:'ilha-murano',           label:'Ilha Murano',            campaign:'FB-STO-INC-LUZIAC_IlhaMurano-STA_emp_000242_prod_REM22567',       seedTotal:20633 },
-    { slug:'opera',                 label:'Opera',                  campaign:'FB-STO-INC-LUZIAC_Opera-SCS_emp_000242_prod_REM24858',            seedTotal:21355 },
+    { slug:'opera',                 label:'Opera',                  campaign:'FB-STO-INC-LUZIAC_Opera-SCS_emp_000242_prod_REM24858',            seedTotal:25705 },
     { slug:'portugal',              label:'Portugal',               campaign:'FB-STO-INC-LUZIAC_Portugal-STA_emp_000242_prod_REM25568',         seedTotal:18920  },
     { slug:'ita-jardim',            label:'Ita Jardim',             campaign:'FB-STO-INC-LUZIAC_ItaJardim-STA_emp_000242_prod_REM24880',        seedTotal:33410 },
-    { slug:'meritt',                label:'Meritt',                 campaign:'FB-STO-LPS-LUZIAC_Meritt-STA', alsoCampaigns:['FB-STO-LPS-1LUZIAC_Meritt-STA_emp_000242_prod_REM25260','FB-STO-LPS-LUZIAC_Meritt-STA_emp_000242_prod_REM25260'],           seedTotal:26220 },
-    { slug:'motiro-parque-central', label:'Motiró Parque Central',  campaign:'FB-STO-INC-LUZIAC_MotiroParqueCentral-STA_emp_000242_prod_REM21670', seedTotal:14600 },
+    { slug:'meritt',                label:'Meritt',                 campaign:'FB-STO-LPS-LUZIAC_Meritt-STA', alsoCampaigns:['FB-STO-LPS-1LUZIAC_Meritt-STA_emp_000242_prod_REM25260','FB-STO-LPS-LUZIAC_Meritt-STA_emp_000242_prod_REM25260'],           seedTotal:29265 },
+    { slug:'motiro-parque-central', label:'Motiró Parque Central',  campaign:'FB-STO-INC-LUZIAC_MotiroParqueCentral-STA_emp_000242_prod_REM21670', seedTotal:16340 },
   ];
 
   // Gasto acumulado em campanhas anteriores a 2026 (fora do período que puxamos do
@@ -749,14 +749,14 @@
   // aporte. Padrão: renovação dia 10 de cada mês; alguns produtos recebem
   // adiantado e ficam com a data mais à frente que os demais.
   const VERBA_VALID_UNTIL = {
-    'start-joy':             '2026-11-10',
-    'landscape':             '2026-11-10',
+    'start-joy':             '2026-12-10',
+    'landscape':             '2026-12-10',
     'ilha-murano':           '2026-11-10',
-    'opera':                 '2026-11-10',
+    'opera':                 '2026-12-10',
     'portugal':              '2026-11-10',
     'ita-jardim':            '2026-11-10',
-    'meritt':                '2026-11-10',
-    'motiro-parque-central': '2026-11-10',
+    'meritt':                '2026-12-10',
+    'motiro-parque-central': '2026-12-10',
   };
   const BRL = n => (n||0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
   const INT = n => Math.round(n||0).toLocaleString('pt-BR');

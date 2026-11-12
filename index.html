@@ -668,7 +668,7 @@
     <div class="panel bn-panel">
       <div class="bn-head">
         <span class="bn-tag">BLACK NOVEMBER</span>
-        <span class="bn-period">Verba da promoção · <span id="bnPeriod">01/11/2026 a 15/12/2026</span></span>
+        <span class="bn-period">Verba da promoção · <span id="bnPeriod">01/11/2026 a 10/12/2026</span></span>
       </div>
       <div class="panel-sub" style="margin:10px 0 10px">Verba separada da verba regular. Investido = campanhas dos produtos novos da promoção, campanhas com <b>“BN”</b> no nome e conjuntos com <b>“Black November”</b> no nome · esse gasto <b>não</b> entra na verba regular do produto (ex.: Ilha de Murano) · Progresso = quanto da verba da promoção já foi gasto (verde < 50% · amarelo 50–79% · vermelho 80%+) · “aguardando” = ainda sem veiculação de Black November</div>
       <div style="overflow-x:auto;">
@@ -798,7 +798,7 @@
     { label:'Ilha de Santorino',  budget:2175.00, keys:['ilhadesantorin','ilhasantorin'], exclusive:true },
     { label:'Ilha de Murano',     budget:2175.00, keys:['ilhademurano','ilhamurano'] },   // só conjuntos "(BLACK NOVEMBER)"
   ];
-  let BN = { from:'2026-11-01', to:'2026-12-15', rows:[] };
+  let BN = { from:'2026-11-01', to:'2026-12-10', rows:[] };
   const normKey = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
   function bnProductOf(campaign){
     const k = normKey(campaign);

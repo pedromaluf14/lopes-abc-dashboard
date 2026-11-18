@@ -1,0 +1,162 @@
+{
+  "_obs": "Feedback semanal dos corretores (Pri e Espanhol). Só números agregados por produto, sem nome nem contato de lead, porque o painel é público. pri = salão (planilha da Pri, com status de cada lead); espanhol = coluna \"Online Atual\" da planilha dele (leads que chegaram no Cloud, ainda sem status). t = leads recebidos, v = visitas marcadas, c = em conversa ou pediram material. Atualizado pelo time via chat toda quarta.",
+  "weeks": [
+    {
+      "from": "2026-11-11",
+      "to": "2026-11-17",
+      "receivedAt": "2026-11-18",
+      "brokers": {
+        "pri": {
+          "le-reve": {
+            "t": 3,
+            "v": 0,
+            "c": 0
+          },
+          "ilha-murano": {
+            "t": 8,
+            "v": 0,
+            "c": 1
+          },
+          "start-joy": {
+            "t": 3,
+            "v": 0,
+            "c": 1
+          },
+          "home-park": {
+            "t": 4,
+            "v": 0,
+            "c": 2
+          },
+          "parque-central": {
+            "t": 2,
+            "v": 0,
+            "c": 0
+          },
+          "tekoa": {
+            "t": 3,
+            "v": 0,
+            "c": 0
+          },
+          "ita-jardim": {
+            "t": 6,
+            "v": 1,
+            "c": 0
+          },
+          "landscape": {
+            "t": 3,
+            "v": 0,
+            "c": 2
+          },
+          "santorini": {
+            "t": 3,
+            "v": 0,
+            "c": 0
+          },
+          "forma": {
+            "t": 3,
+            "v": 0,
+            "c": 0
+          },
+          "fontello": {
+            "t": 1,
+            "v": 0,
+            "c": 0
+          },
+          "new-way": {
+            "t": 4,
+            "v": 0,
+            "c": 0
+          },
+          "barcelona": {
+            "t": 0,
+            "v": 0,
+            "c": 0
+          },
+          "casa-branca": {
+            "t": 0,
+            "v": 0,
+            "c": 0
+          },
+          "jump": {
+            "t": 0,
+            "v": 0,
+            "c": 0
+          },
+          "wine": {
+            "t": 0,
+            "v": 0,
+            "c": 0
+          }
+        },
+        "espanhol": {
+          "ilha-murano": {
+            "t": 9
+          },
+          "ita-jardim": {
+            "t": 8
+          },
+          "landscape": {
+            "t": 8
+          },
+          "meritt": {
+            "t": 30
+          },
+          "parque-central": {
+            "t": 4
+          },
+          "opera": {
+            "t": 21
+          },
+          "portugal": {
+            "t": 23
+          },
+          "start-joy": {
+            "t": 16
+          },
+          "fontello": {
+            "t": 4
+          },
+          "forma": {
+            "t": 6
+          },
+          "home-park": {
+            "t": 4
+          },
+          "santorini": {
+            "t": 4
+          },
+          "jump": {
+            "t": 2
+          },
+          "barcelona": {
+            "t": 0
+          },
+          "new-way": {
+            "t": 5
+          },
+          "tekoa": {
+            "t": 4
+          },
+          "wine": {
+            "t": 1
+          },
+          "le-reve": {
+            "t": 4
+          },
+          "casa-branca": {
+            "t": 0
+          }
+        }
+      },
+      "notes": {
+        "ita-jardim": "Visita agendada (lead veio do Ita, visita marcada no Meritt) · 1 lead repassado para 2 corretores",
+        "home-park": "1 lead ficou de confirmar o melhor dia para visita",
+        "landscape": "1 lead pediu material · 1 em atendimento",
+        "start-joy": "1 em conversa (renda de R$ 5 mil) · 1 recebeu PDF e não respondeu",
+        "forma": "1 recebeu PDF e não respondeu",
+        "fontello": "Recebeu PDF e não respondeu",
+        "ilha-murano": "1 em atendimento · 1 clicou por engano"
+      }
+    }
+  ]
+}

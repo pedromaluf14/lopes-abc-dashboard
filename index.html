@@ -261,6 +261,28 @@
   #bnBody tr.bn-wait td{ color:var(--muted); }
   tbody tr.bn-sec-row td{ padding:16px 10px 8px; border-bottom:1px solid var(--border); background:var(--surface); }
 
+  /* ===== Feedback semanal ===== */
+  .fb-top{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .fb-top select{ font-family:inherit; font-size:13px; font-weight:600; padding:8px 12px; border-radius:10px; border:1px solid var(--border); background:var(--surface); color:var(--ink); }
+  .fb-kpis{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+  .fb-kpi{ background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:14px 16px; box-shadow:var(--shadow); }
+  .fb-kpi .lbl{ font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); font-weight:600; }
+  .fb-kpi .val{ font-family:"Poppins"; font-size:26px; font-weight:700; color:var(--ink); margin-top:4px; }
+  .fb-kpi .sub{ font-size:12px; color:var(--muted); margin-top:2px; }
+  .fb-kpi.good{ border-color:var(--good); background:linear-gradient(120deg,var(--good-bg),var(--surface) 75%); }
+  .fb-kpi.warn{ border-color:#E8B35A; background:linear-gradient(120deg,var(--warn-bg),var(--surface) 75%); }
+  .fb-kpi.bad{ border-color:#E59B9B; background:linear-gradient(120deg,var(--bad-bg),var(--surface) 75%); }
+  .fb-light{ display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:999px; white-space:nowrap; }
+  .fb-light::before{ content:""; width:9px; height:9px; border-radius:50%; background:currentColor; }
+  .fb-light.green{ color:var(--good); background:var(--good-bg); }
+  .fb-light.yellow{ color:var(--warn); background:var(--warn-bg); }
+  .fb-light.red{ color:var(--bad); background:var(--bad-bg); }
+  .fb-light.grey{ color:var(--muted); background:var(--surface-2); border:1px solid var(--border); }
+  #fbBody td.note{ font-size:12px; color:var(--ink-soft); max-width:300px; }
+  #fbBody td.miss{ color:var(--bad); font-weight:700; }
+  #fbBody td.dim{ color:var(--muted); }
+  @media (max-width:760px){ .fb-kpis{ grid-template-columns:repeat(2,1fr); } }
+
   /* ===== Imprimir relatório ===== */
   .print-wrap{ position:relative; margin-left:auto; }
   .print-btn{
@@ -306,7 +328,12 @@
     .tab-panel{ display:none !important; }
     body.p-resumo .tab-panel[data-panel="resumo"],
     body.p-produtos .tab-panel[data-panel="produtos"],
-    body.p-verbas .tab-panel[data-panel="verbas"]{ display:flex !important; gap:10px; }
+    body.p-verbas .tab-panel[data-panel="verbas"],
+    body.p-feedback .tab-panel[data-panel="feedback"]{ display:flex !important; gap:10px; }
+    body.p-feedback.p-resumo .tab-panel[data-panel="feedback"],
+    body.p-feedback.p-produtos .tab-panel[data-panel="feedback"],
+    body.p-feedback.p-verbas .tab-panel[data-panel="feedback"]{ break-before:page; }
+    .fb-top select{ display:none; }
     body.p-resumo.p-produtos .tab-panel[data-panel="produtos"],
     body.p-verbas.p-produtos .tab-panel[data-panel="verbas"],
     body.p-resumo.p-verbas .tab-panel[data-panel="verbas"]{ break-before:page; }
@@ -517,6 +544,7 @@
     <button class="tab-btn active" data-tab="resumo">Visão geral</button>
     <button class="tab-btn" data-tab="produtos">Resumo rápido</button>
     <button class="tab-btn" data-tab="verbas">Verbas</button>
+    <button class="tab-btn" data-tab="feedback">Feedback semanal</button>
   </div>
 
 
@@ -556,6 +584,7 @@
           <label><input type="checkbox" name="pSec" value="resumo" checked> Visão geral <span style="color:var(--muted);font-size:11.5px">(período escolhido)</span></label>
           <label><input type="checkbox" name="pSec" value="produtos" checked> Resumo rápido <span style="color:var(--muted);font-size:11.5px">(7 dias)</span></label>
           <label><input type="checkbox" name="pSec" value="verbas" checked> Verbas</label>
+          <label><input type="checkbox" name="pSec" value="feedback"> Feedback semanal</label>
           <div class="grp">Orientação</div>
           <div class="orient">
             <label><input type="radio" name="pOri" value="portrait" checked> Retrato</label>
@@ -716,6 +745,37 @@
             </tr>
           </thead>
           <tbody id="bnBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TAB: FEEDBACK SEMANAL ===== -->
+  <div class="tab-panel" data-panel="feedback">
+    <div class="print-title">Feedback semanal</div>
+    <div class="fb-top">
+      <div class="period"><span>&#128197;</span> <span id="fbPeriod">—</span></div>
+      <select id="fbWeek" aria-label="Semana"></select>
+    </div>
+    <div class="fb-kpis" id="fbKpis"></div>
+    <div class="panel">
+      <div class="panel-sub" style="margin-bottom:10px">Como ler: <b>Leads Meta</b> = leads que o Meta entregou nos mesmos 7 dias do feedback · <b>Pri</b> = leads que chegaram no salão · <b>Espanhol</b> = leads que chegaram no Cloud (online) · <b>Não chegaram</b> = Leads Meta − (Pri + Espanhol) · <b>Farol</b>, pela qualidade informada pelos corretores: <span class="fb-light green">visita marcada</span> <span class="fb-light yellow">em conversa ou pediu material</span> <span class="fb-light red">nenhum lead em conversa</span> <span class="fb-light grey">sem retorno de qualidade</span></div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Produto</th>
+              <th>Farol</th>
+              <th class="num-col">Leads Meta</th>
+              <th class="num-col">Pri</th>
+              <th class="num-col">Espanhol</th>
+              <th class="num-col">Não chegaram</th>
+              <th class="num-col">Visitas</th>
+              <th class="num-col">Em conversa</th>
+              <th>Observações</th>
+            </tr>
+          </thead>
+          <tbody id="fbBody"></tbody>
         </table>
       </div>
     </div>
@@ -1047,12 +1107,12 @@
       const s = secs(); if(!s.length) return;
       const ori = menu.querySelector('input[name="pOri"]:checked').value;
       pageStyle.textContent = `@page{ size: A4 ${ori}; margin: 10mm; }`;
-      document.body.classList.remove('p-resumo','p-produtos','p-verbas');
+      document.body.classList.remove('p-resumo','p-produtos','p-verbas','p-feedback');
       s.forEach(x => document.body.classList.add('p-' + x));
       toggle(false);
       setTimeout(() => window.print(), 50);
     });
-    window.addEventListener('afterprint', () => document.body.classList.remove('p-resumo','p-produtos','p-verbas'));
+    window.addEventListener('afterprint', () => document.body.classList.remove('p-resumo','p-produtos','p-verbas','p-feedback'));
   })();
 
   /* ---------------- tabs ---------------- */
@@ -1786,6 +1846,7 @@
     const curFrom = dayIso(7), curTo = dayIso(1), prevFrom = dayIso(14), prevTo = dayIso(8);
     renderProdutos(byCampaignTotals(allSlugs, curFrom, curTo), byCampaignTotals(allSlugs, prevFrom, prevTo), curFrom, curTo, prevFrom, prevTo);
     renderVerbas();
+    renderFeedback();
     document.getElementById('verbasPeriod').textContent = 'saldo corrido — não reseta sozinho, só com novo aporte do cliente';
 
     refreshResumo();
@@ -1801,7 +1862,7 @@
     els.refreshBtn.disabled = true;
     icon.classList.add('spin');
     let ok = true;
-    try { await loadData(); } catch(e){ ok = false; }
+    try { await Promise.all([loadData(), loadFeedback()]); } catch(e){ ok = false; }
     refreshAll();
     await new Promise(r => setTimeout(r, 400));
     icon.classList.remove('spin');
@@ -1829,6 +1890,7 @@
     // Um produto pode ter mais de uma campanha (ex.: campanha renomeada no Gerenciador).
     // Soma as campanhas listadas em campaign + alsoCampaigns.
     const all = raw.campaigns || {};
+    RAW_CAMPAIGNS = all;
     PRODUCTS.forEach(p => {
       const docs = [p.campaign].concat(p.alsoCampaigns || []).map(c => all[c]).filter(Boolean);
       if(!docs.length){ metricsCache[p.slug] = undefined; return; }
@@ -1873,11 +1935,112 @@
     BUILD_TIME = raw.updatedAt;
   }
 
+  /* ---------------- render: feedback semanal ---------------- */
+  // Catálogo dos produtos do feedback. keys = trecho do nome da campanha (sem acento/espaço)
+  // usado para somar os leads do Meta no mesmo período do feedback.
+  const FB_PRODUCTS = [
+    { slug:'ita-jardim',     label:'Ita Jardim',            keys:['itajardim'] },
+    { slug:'meritt',         label:'Meritt',                keys:['meritt'] },
+    { slug:'opera',          label:'Opera',                 keys:['opera'] },
+    { slug:'portugal',       label:'Portugal',              keys:['portugal'] },
+    { slug:'start-joy',      label:'Start Joy',             keys:['startjoy'] },
+    { slug:'landscape',      label:'Landscape',             keys:['landscape'] },
+    { slug:'ilha-murano',    label:'Ilha de Murano',        keys:['ilhamurano','ilhademurano'] },
+    { slug:'parque-central', label:'Motiró Parque Central', keys:['parquecentral'] },
+    { slug:'home-park',      label:'Home Park Jardim',      keys:['homepark'] },
+    { slug:'new-way',        label:'New Way',               keys:['newway'] },
+    { slug:'forma',          label:'Forma',                 keys:['forma'] },
+    { slug:'santorini',      label:'Ilha de Santorini',     keys:['santorin'] },
+    { slug:'tekoa',          label:'Tekoa',                 keys:['tekoa'] },
+    { slug:'le-reve',        label:'Le Rêve',               keys:['lereve'] },
+    { slug:'fontello',       label:'Fontello',              keys:['fontello','fontelo'] },
+    { slug:'jump',           label:'Jump Assunção',         keys:['jump'] },
+    { slug:'barcelona',      label:'Motiró Barcelona',      keys:['barcelona'] },
+    { slug:'casa-branca',    label:'Motiró Casa Branca',    keys:['casabranca'] },
+    { slug:'wine',           label:'Wine',                  keys:['wine'] },
+  ];
+  let FEEDBACK = { weeks: [] }, RAW_CAMPAIGNS = {};
+  const normName = t => (t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  function metaLeadsFor(prod, from, to){
+    let n = 0;
+    Object.entries(RAW_CAMPAIGNS).forEach(([c, doc]) => {
+      const k = normName(c);
+      if(!prod.keys.some(x => k.includes(x))) return;
+      (doc.daily || []).forEach(r => { if(r.d >= from && r.d <= to) n += r.leads || 0; });
+    });
+    return n;
+  }
+  async function loadFeedback(){
+    try{
+      const res = await fetch('feedback.json?t=' + Date.now(), {cache:'no-store'});
+      if(res.ok) FEEDBACK = await res.json();
+    }catch(e){}
+    const weeks = (FEEDBACK.weeks || []).slice().sort((a,b) => b.from.localeCompare(a.from));
+    FEEDBACK.weeks = weeks;
+    const sel = document.getElementById('fbWeek');
+    sel.innerHTML = weeks.map((w,i) => `<option value="${i}">${fmtDatePt(w.from)} a ${fmtDatePt(w.to)}</option>`).join('');
+    sel.style.display = weeks.length > 1 ? '' : 'none';
+    sel.onchange = renderFeedback;
+  }
+  function renderFeedback(){
+    const body = document.getElementById('fbBody'), kpis = document.getElementById('fbKpis');
+    const w = FEEDBACK.weeks[+document.getElementById('fbWeek').value || 0];
+    if(!w){
+      document.getElementById('fbPeriod').textContent = 'nenhum feedback lançado ainda';
+      body.innerHTML = ''; kpis.innerHTML = ''; return;
+    }
+    document.getElementById('fbPeriod').textContent =
+      `feedback dos corretores de ${fmtDatePt(w.from)} a ${fmtDatePt(w.to)} · recebido em ${fmtDatePt(w.receivedAt)}`;
+    const pri = (w.brokers && w.brokers.pri) || {}, esp = (w.brokers && w.brokers.espanhol) || {};
+    const notes = w.notes || {};
+    const rank = { green:0, yellow:1, red:2, grey:3 };
+    const rows = FB_PRODUCTS.map(p => {
+      const a = pri[p.slug], b = esp[p.slug];
+      const meta = metaLeadsFor(p, w.from, w.to);
+      const brokers = [a, b].filter(Boolean);
+      const got = brokers.reduce((s,x) => s + (x.t||0), 0);
+      // só conta para o farol quem mandou qualidade (v/c), não só a quantidade
+      const qual = brokers.filter(x => (x.t||0) > 0 && (x.v !== undefined || x.c !== undefined));
+      const qualLeads = qual.reduce((s,x) => s + (x.t||0), 0);
+      const v = qual.reduce((s,x) => s + (x.v||0), 0), c = qual.reduce((s,x) => s + (x.c||0), 0);
+      let light = 'grey';
+      if(v > 0) light = 'green'; else if(c > 0) light = 'yellow'; else if(qualLeads > 0) light = 'red';
+      return { p, meta, a, b, got, v, c, light, hasQual: qual.length > 0, note: notes[p.slug] || '' };
+    }).filter(r => r.meta > 0 || r.got > 0)
+      .sort((x,y) => rank[x.light] - rank[y.light] || y.meta - x.meta);
+
+    const LBL = { green:'Visita marcada', yellow:'Em conversa', red:'Sem conversa', grey:'Sem retorno' };
+    body.innerHTML = rows.map(r => {
+      const miss = r.meta - r.got;
+      const missTxt = miss > 0 ? INT(miss) : (miss < 0 ? '+' + INT(-miss) : '0');
+      return `<tr>
+        <td class="name">${r.p.label}</td>
+        <td><span class="fb-light ${r.light}">${LBL[r.light]}</span></td>
+        <td class="num-col">${INT(r.meta)}</td>
+        <td class="num-col ${r.a ? '' : 'dim'}">${r.a ? INT(r.a.t) : '—'}</td>
+        <td class="num-col ${r.b ? '' : 'dim'}">${r.b ? INT(r.b.t) : '—'}</td>
+        <td class="num-col ${miss > 0 ? 'miss' : 'dim'}" title="${miss < 0 ? 'Corretores receberam mais do que o Meta registrou no período (lead de dias anteriores ou repassado em duplicidade)' : ''}">${missTxt}</td>
+        <td class="num-col ${r.hasQual ? '' : 'dim'}">${r.hasQual ? INT(r.v) : '—'}</td>
+        <td class="num-col ${r.hasQual ? '' : 'dim'}">${r.hasQual ? INT(r.c) : '—'}</td>
+        <td class="note">${r.note}${!r.hasQual && r.got > 0 ? (r.note ? ' · ' : '') + 'Sem retorno de qualidade dos corretores' : ''}</td>
+      </tr>`;
+    }).join('');
+
+    const cnt = k => rows.filter(r => r.light === k).length;
+    const metaT = rows.reduce((s,r) => s + r.meta, 0), gotT = rows.reduce((s,r) => s + r.got, 0);
+    const vT = rows.reduce((s,r) => s + r.v, 0), cT = rows.reduce((s,r) => s + r.c, 0);
+    kpis.innerHTML = `
+      <div class="fb-kpi"><div class="lbl">Leads entregues (Meta)</div><div class="val">${INT(metaT)}</div><div class="sub">${INT(gotT)} chegaram aos corretores${metaT > gotT ? ' · ' + INT(metaT - gotT) + ' não chegaram' : ''}</div></div>
+      <div class="fb-kpi good"><div class="lbl">Visitas marcadas</div><div class="val">${INT(vT)}</div><div class="sub">${cnt('green')} produto(s) no verde</div></div>
+      <div class="fb-kpi warn"><div class="lbl">Em conversa / material</div><div class="val">${INT(cT)}</div><div class="sub">${cnt('yellow')} produto(s) no amarelo</div></div>
+      <div class="fb-kpi bad"><div class="lbl">Sem conversa</div><div class="val">${cnt('red')}</div><div class="sub">produto(s) no vermelho${cnt('grey') ? ' · ' + cnt('grey') + ' sem retorno de qualidade' : ''}</div></div>`;
+  }
+
   async function boot(){
     buildVerbasTable();
     populateProductSelect();
     initCustomPeriodInputs();
-    try { await loadData(); }
+    try { await Promise.all([loadData(), loadFeedback()]); }
     catch(e){ els.updatedAt.textContent = 'não foi possível carregar os dados (' + e.message + ')'; }
     refreshAll();
   }

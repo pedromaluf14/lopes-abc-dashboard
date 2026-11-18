@@ -1,5 +1,5 @@
 {
-  "_obs": "Feedback semanal dos corretores (Pri e Espanhol). Só números agregados por produto, sem nome nem contato de lead, porque o painel é público. pri = salão (planilha da Pri, com status de cada lead); espanhol = coluna \"Online Atual\" da planilha dele (leads que chegaram no Cloud, ainda sem status). t = leads recebidos, v = visitas marcadas, c = em conversa ou pediram material. Atualizado pelo time via chat toda quarta.",
+  "_obs": "Feedback semanal dos corretores (Pri e Espanhol). Só números agregados por produto, sem nome nem contato de lead, porque o painel é público. pri = salão (planilha da Pri, com status de cada lead); espanhol = coluna \"Online Atual\" da planilha dele (leads que chegaram no Cloud, ainda sem status). t = leads recebidos, v = visitas marcadas, c = em conversa ou pediram material. Atualizado pelo time via chat toda quarta. Regra: qualquer menção a visita (marcada ou a confirmar) conta como visita (verde).",
   "weeks": [
     {
       "from": "2026-11-11",
@@ -24,8 +24,8 @@
           },
           "home-park": {
             "t": 4,
-            "v": 0,
-            "c": 2
+            "v": 1,
+            "c": 1
           },
           "parque-central": {
             "t": 2,
@@ -150,7 +150,7 @@
       },
       "notes": {
         "ita-jardim": "Visita agendada (lead veio do Ita, visita marcada no Meritt) · 1 lead repassado para 2 corretores",
-        "home-park": "1 lead ficou de confirmar o melhor dia para visita",
+        "home-park": "1 lead falando de visita (ficou de confirmar o melhor dia) · 1 em atendimento",
         "landscape": "1 lead pediu material · 1 em atendimento",
         "start-joy": "1 em conversa (renda de R$ 5 mil) · 1 recebeu PDF e não respondeu",
         "forma": "1 recebeu PDF e não respondeu",
